@@ -1,0 +1,33 @@
+# .NET / C#
+bin/
+obj/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Databases & SQLite
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+SitePass.Api/sitepass.db
+
+# VS Code / IDEs
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln.docstates
+
+# OS temporary files
+.DS_Store
+Thumbs.db
+
+# Agent/Gemini files
+.gemini/
+.agents/
+task.md
+implementation_plan.md
+walkthrough.md
+integration_guide.md
+integration_guide.md

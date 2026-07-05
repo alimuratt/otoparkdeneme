@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SitePass - Otopark ve Güvenlik Yönetim Sistemi</title>
+  
+  <!-- PWA & Mobile Web App Meta -->
+  <meta name="theme-color" content="#0ea5e9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SitePass">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  
+  <!-- Manifest link -->
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- Styling -->
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <div class="app-container">
+
+    <!-- Header (Always visible on login, hidden or minimized inside panels) -->
+    <header id="app-header">
+      <div class="logo-container">
+        <span class="logo-icon">🔑</span>
+        <h1>SitePass</h1>
+      </div>
+      <div class="subtitle">Otopark & Güvenlik Yönetimi</div>
+    </header>
+
+    <!-- PWA Install Banner -->
+    <div id="pwa-install-banner" class="install-banner">
+      <div class="install-banner-content">
+        <h3>Uygulamayı Yükleyin</h3>
+        <p>Adres yazmadan hızlıca erişmek için ana ekranınıza kısayol ekleyin.</p>
+      </div>
+      <button id="btn-pwa-install" class="btn btn-primary install-banner-btn">Yükle</button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 1. GİRİŞ EKRANI (LOGIN VIEW) -->
+    <!-- ========================================== -->
+    <main id="view-login" class="view active">
+      <div class="card">
+        <h2 id="login-title">Sisteme Giriş Yapın</h2>
+        
+        <!-- Role Selector Buttons (Elder Friendly) -->
+        <label>Giriş Rolünüzü Seçin</label>
+        <div class="role-selectors">
+          <button type="button" class="role-btn active" data-role="Resident">
+            <span class="icon">🏠</span>
+            <span>Site Sakini</span>
+          </button>
+          <button type="button" class="role-btn" data-role="Security">
+            <span class="icon">👮</span>
+            <span>Güvenlik</span>
+          </button>
+          <button type="button" class="role-btn" data-role="Admin">
+            <span class="icon">⚙️</span>
+            <span>Yönetici</span>
+          </button>
+        </div>
+
+        <!-- LOGIN FORM WRAPPER -->
+        <div id="login-form-container">
+          <form id="login-form">
+            <div class="form-group">
+              <label for="loginPhone">Telefon Numarası</label>
+              <input type="tel" id="loginPhone" placeholder="Örn: 05554445566" required autocomplete="tel">
+            </div>
+
+            <div class="form-group">
+              <label for="loginPassword">Giriş Şifresi</label>
+              <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+            </div>
+
+            <div class="checkbox-group" id="remember-me-group">
+              <input type="checkbox" id="rememberMe" checked>
+              <label for="rememberMe">Beni Hatırla (Oturumu Açık Tut)</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="btn-login-submit">
+              <span>Giriş Yap</span>
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- 2. SİTE SAKİNİ PANELİ (RESIDENT VIEW) -->
+    <!-- ========================================== -->
+    <main id="view-resident" class="view">
+      <!-- Top Navigation -->
+      <div class="panel-nav">
+        <div class="user-info-badge">
+          <div class="user-avatar" id="resident-avatar">AS</div>
+          <div class="user-details">
+            <span class="user-name" id="resident-user-name">Ahmet Sakin</span>
+            <span class="user-role-label">Sakin - Daire <span id="resident-apartment-details">A/12</span></span>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-logout" onclick="logout()">Çıkış</button>
+      </div>
+
+      <!-- Function B: Mega Delivery Button (Placed first for high accessibility/elderly priority) -->
+      <div class="card" style="text-align: center;">
+        <h2>Kargo & Sipariş İşlemleri</h2>
+        <p style="color: var(--text-muted); margin-bottom: 16px;">Gelmeyi bekleyen bir teslimatınız varsa alttaki butona basın.</p>
+        <button class="btn btn-mega" id="btn-expect-delivery">
+          <span class="btn-icon">📦</span>
+          <span>Kargo / Sipariş Bekliyorum</span>
+        </button>
+      </div>
+
+      <!-- Active Expected Deliveries List -->
+      <div class="card">
+        <h2>Bekleyen Kargo / Siparişleriniz</h2>
+        <div id="active-deliveries-list" class="list-container">
+          <div class="alert alert-info" id="no-active-deliveries-resident">
+            <span class="alert-icon">ℹ️</span>
+            <div>Şu an beklediğiniz aktif bir kargo/sipariş bulunmamaktadır.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Function A: Guest Vehicle Adding -->
+      <div class="card">
+        <h2>Misafir Araç Tanımlama</h2>
+        <p style="color: var(--text-muted); margin-bottom: 16px;">Plakayı yazın. Bariyer izni 12 saat süresince geçerli olacaktır.</p>
+        
+        <form id="guest-vehicle-form">
+          <div class="form-group">
+            <label for="guestPlate">Araç Plakası</label>
+            <input type="text" id="guestPlate" placeholder="34ABC123" required maxlength="12">
+          </div>
+          <button type="submit" class="btn btn-success">
+            <span>🚗 Misafir Tanımla</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Active Guests Countdowns -->
+      <div class="card">
+        <h2>Aktif Misafir Araçlarınız</h2>
+        <div id="active-guests-list" class="list-container">
+          <!-- Dynamically populated countdown cards -->
+          <div class="alert alert-info" id="no-active-guests">
+            <span class="alert-icon">ℹ️</span>
+            <div>Şu an aktif tanımlı misafir aracınız bulunmamaktadır.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mock LPR Simulation Section (TESTING ONLY) -->
+      <div class="card mock-lpr-section">
+        <div class="mock-title">⚡ Test: Kamera Plaka Tanıma (LPR)</div>
+        <p style="color: var(--text-muted); margin-bottom: 12px; font-size: 0.9rem;">
+          Kameranın aracı okuyup bariyeri açtığı ve sakine anlık bildirim gittiği anı simüle edin.
+        </p>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <input type="text" id="mockLprPlate" placeholder="34ABC123" style="text-align: center; height: 48px; font-size: 1.3rem;">
+        </div>
+        <button type="button" class="btn btn-secondary" id="btn-mock-lpr-submit" style="min-height: 48px;">
+          Plakayı Kameradan Oku
+        </button>
+      </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- 3. GÜVENLİK PANELİ (SECURITY VIEW) -->
+    <!-- ========================================== -->
+    <main id="view-security" class="view">
+      <!-- Top Navigation -->
+      <div class="panel-nav">
+        <div class="user-info-badge">
+          <div class="user-avatar" id="security-avatar">G</div>
+          <div class="user-details">
+            <span class="user-name" id="security-user-name">Mehmet Güvenlik</span>
+            <span class="user-role-label">Güvenlik Görevlisi</span>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-logout" onclick="logout()">Çıkış</button>
+      </div>
+
+      <!-- Expected Deliveries List -->
+      <div class="card">
+        <h2>Beklenen Teslimatlar listesi</h2>
+        <p style="color: var(--text-muted); margin-bottom: 16px;">
+          Daire sakinlerinin "Bekliyorum" dediği kargolar. Ulaştığında yeşil butona basarak onaylayın.
+        </p>
+        
+        <div id="security-deliveries-list" class="list-container">
+          <!-- Dynamically populated active deliveries cards -->
+          <div class="alert alert-info" id="no-active-deliveries">
+            <span class="alert-icon">ℹ️</span>
+            <div>Şu an beklenen aktif bir teslimat bulunmamaktadır.</div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- 4. YÖNETİCİ PANELİ (ADMIN VIEW) -->
+    <!-- ========================================== -->
+    <main id="view-admin" class="view">
+      <!-- Top Navigation -->
+      <div class="panel-nav">
+        <div class="user-info-badge">
+          <div class="user-avatar" id="admin-avatar">Y</div>
+          <div class="user-details">
+            <span class="user-name" id="admin-user-name">Yusuf Yönetici</span>
+            <span class="user-role-label">Sistem Yöneticisi</span>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-logout" onclick="logout()">Çıkış</button>
+      </div>
+
+      <!-- Tab Buttons -->
+      <div class="admin-tabs">
+        <button type="button" class="tab-btn active" data-target="admin-section-users">Sakin / Görevli Ekle</button>
+        <button type="button" class="tab-btn" data-target="admin-section-vehicles">Sabit Plakalar</button>
+      </div>
+
+      <!-- TAB 1: USER MANAGEMENT -->
+      <div id="admin-section-users" class="admin-section active">
+        <!-- Add User Form -->
+        <div class="card">
+          <h3>Yeni Sakin / Güvenlik Ekle</h3>
+          <form id="admin-user-form">
+            <div class="form-group">
+              <label for="userFirstName">Adı</label>
+              <input type="text" id="userFirstName" placeholder="Adı" required>
+            </div>
+            <div class="form-group">
+              <label for="userLastName">Soyadı</label>
+              <input type="text" id="userLastName" placeholder="Soyadı" required>
+            </div>
+            <div class="form-group">
+              <label for="userRole">Rolü</label>
+              <select id="userRole">
+                <option value="Resident">Site Sakini (Resident)</option>
+                <option value="Security">Güvenlik Görevlisi (Security)</option>
+                <option value="Admin">Sistem Yöneticisi (Admin)</option>
+              </select>
+            </div>
+            <div class="form-group" id="admin-user-block-group">
+              <label for="userBlock">Blok No</label>
+              <input type="text" id="userBlock" placeholder="Örn: A">
+            </div>
+            <div class="form-group" id="admin-user-apt-group">
+              <label for="userApartment">Daire No</label>
+              <input type="text" id="userApartment" placeholder="Örn: 12">
+            </div>
+            <div class="form-group">
+              <label for="userPhone">Telefon Numarası</label>
+              <input type="tel" id="userPhone" placeholder="Örn: 05554445566" required>
+            </div>
+            <div class="form-group">
+              <label for="userPassword">Giriş Şifresi</label>
+              <input type="text" id="userPassword" placeholder="Şifre belirleyin" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Kaydet</button>
+          </form>
+        </div>
+
+        <!-- Users List -->
+        <div class="card">
+          <h3>Kayıtlı Kullanıcılar</h3>
+          <div class="admin-table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Ad Soyad</th>
+                  <th>Rol</th>
+                  <th>Konum</th>
+                  <th>Telefon</th>
+                  <th>İşlem</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-table-body">
+                <!-- Dynamically filled -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: PERMANENT VEHICLE MANAGEMENT -->
+      <div id="admin-section-vehicles" class="admin-section">
+        <!-- Add Permanent Vehicle Form -->
+        <div class="card">
+          <h3>Sakin Kalıcı Araç Plakası Ekle</h3>
+          <form id="admin-vehicle-form">
+            <div class="form-group">
+              <label for="permVehicleResident">Sakin Seçin</label>
+              <select id="permVehicleResident" required>
+                <!-- Filled dynamically with residents -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="permPlate">Araç Plakası</label>
+              <input type="text" id="permPlate" placeholder="34ABC123" required maxlength="12">
+            </div>
+            <button type="submit" class="btn btn-primary">Plaka Ekle (Sınırsız)</button>
+          </form>
+        </div>
+
+        <!-- Vehicles List -->
+        <div class="card">
+          <h3>Sistemdeki Tüm Plakalar</h3>
+          <div class="admin-table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Plaka</th>
+                  <th>Sakin</th>
+                  <th>Konum</th>
+                  <th>Tür</th>
+                  <th>İşlem</th>
+                </tr>
+              </thead>
+              <tbody id="admin-vehicles-table-body">
+                <!-- Dynamically filled -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- SignalR Library (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+  
+  <!-- Frontend Logic -->
+  <script src="app.js"></script>
+
+</body>
+</html>
