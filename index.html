@@ -127,14 +127,18 @@
       <!-- Resident Selector Menu (Big Premium Buttons) -->
       <div class="card" id="resident-menu-card" style="margin-bottom: 20px;">
         <h2 style="text-align: center; margin-bottom: 16px; font-weight: 700;">Hızlı İşlem Seçin</h2>
-        <div class="role-selectors" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 0;">
+        <div class="role-selectors" style="margin-bottom: 0;">
           <button type="button" class="role-btn" id="btn-menu-guest" style="min-height: 90px; flex-direction: column; justify-content: center; gap: 8px; border: 2px solid rgba(255,255,255,0.05); padding: 12px; border-radius: var(--border-radius-md);">
             <span class="icon" style="font-size: 2.2rem; margin: 0;">🚗</span>
-            <span style="font-size: 1rem; font-weight: 700;">Misafir Araç Girişi</span>
+            <span style="font-size: 0.95rem; font-weight: 700;">Misafir Araç</span>
           </button>
           <button type="button" class="role-btn" id="btn-menu-delivery" style="min-height: 90px; flex-direction: column; justify-content: center; gap: 8px; border: 2px solid rgba(255,255,255,0.05); padding: 12px; border-radius: var(--border-radius-md);">
             <span class="icon" style="font-size: 2.2rem; margin: 0;">📦</span>
-            <span style="font-size: 1rem; font-weight: 700;">Kargo / Sipariş Bekleme</span>
+            <span style="font-size: 0.95rem; font-weight: 700;">Kargo / Sipariş</span>
+          </button>
+          <button type="button" class="role-btn" id="btn-menu-complaint" style="min-height: 90px; flex-direction: column; justify-content: center; gap: 8px; border: 2px solid rgba(255,255,255,0.05); padding: 12px; border-radius: var(--border-radius-md);">
+            <span class="icon" style="font-size: 2.2rem; margin: 0;">⚠️</span>
+            <span style="font-size: 0.95rem; font-weight: 700;">Şikayet Oluştur</span>
           </button>
         </div>
       </div>
@@ -242,6 +246,24 @@
           </div>
         </div>
       </div> <!-- End resident-guest-section -->
+
+      <!-- Şikayet Oluşturma Bölümü -->
+      <div id="resident-complaint-section" style="display: none;">
+        <div class="card">
+          <h2>Şikayet Oluştur</h2>
+          <p style="color: var(--text-muted); margin-bottom: 16px;">Şikayetinizi yazıp gönderin. En fazla 300 kelime yazabilirsiniz.</p>
+          <form id="complaint-form">
+            <div class="form-group">
+              <label for="complaintText">Şikayet Detayı</label>
+              <textarea id="complaintText" placeholder="Şikayetinizi buraya yazın..." required style="width: 100%; min-height: 120px; padding: 12px; border-radius: var(--border-radius-md); border: 2px solid rgba(255,255,255,0.1); background-color: var(--bg-input); color: var(--text-main); font-family: inherit; font-size: 1rem; resize: vertical; box-sizing: border-box;"></textarea>
+              <div id="complaint-word-counter" style="text-align: right; font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">0 / 300 kelime</div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="btn-complaint-submit" style="margin-top: 8px;">
+              <span>⚠️ Şikayeti Gönder</span>
+            </button>
+          </form>
+        </div>
+      </div>
     </main>
 
     <!-- ========================================== -->
@@ -294,9 +316,10 @@
       </div>
 
       <!-- Tab Buttons -->
-      <div class="admin-tabs">
-        <button type="button" class="tab-btn active" data-target="admin-section-users">Sakin / Görevli Ekle</button>
-        <button type="button" class="tab-btn" data-target="admin-section-vehicles">Sabit Plakalar</button>
+      <div class="admin-tabs" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+        <button type="button" class="tab-btn active" data-target="admin-section-users">Kullanıcılar</button>
+        <button type="button" class="tab-btn" data-target="admin-section-vehicles">Plakalar</button>
+        <button type="button" class="tab-btn" data-target="admin-section-complaints">Şikayetler</button>
       </div>
 
       <!-- TAB 1: USER MANAGEMENT -->
@@ -398,6 +421,29 @@
                 </tr>
               </thead>
               <tbody id="admin-vehicles-table-body">
+                <!-- Dynamically filled -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: COMPLAINTS -->
+      <div id="admin-section-complaints" class="admin-section">
+        <div class="card">
+          <h3>Gelen Sakin Şikayetleri</h3>
+          <p style="color: var(--text-muted); margin-bottom: 16px;">Sakinler tarafından iletilen şikayetlerin listesi.</p>
+          <div class="admin-table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th style="width: 150px;">Tarih</th>
+                  <th style="width: 120px;">Daire / Blok</th>
+                  <th style="width: 180px;">Sakin Adı</th>
+                  <th>Şikayet Açıklaması</th>
+                </tr>
+              </thead>
+              <tbody id="admin-complaints-table-body">
                 <!-- Dynamically filled -->
               </tbody>
             </table>

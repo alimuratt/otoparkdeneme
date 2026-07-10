@@ -368,34 +368,103 @@ function startSignalR() {
 // RESIDENT PANEL LOGIC (SAKİN)
 // ==========================================
 function initResidentPanel() {
-  // Resident Sub-menu Quick Selector
+  // Resident Sub-menu Quick Selector (Guest, Delivery, Complaint)
   const btnMenuGuest = document.getElementById('btn-menu-guest');
   const btnMenuDelivery = document.getElementById('btn-menu-delivery');
+  const btnMenuComplaint = document.getElementById('btn-menu-complaint');
   const guestSection = document.getElementById('resident-guest-section');
   const deliverySection = document.getElementById('resident-delivery-section');
+  const complaintSection = document.getElementById('resident-complaint-section');
 
   function selectResidentSubMenu(mode) {
+    btnMenuGuest.classList.remove('active');
+    btnMenuDelivery.classList.remove('active');
+    btnMenuComplaint.classList.remove('active');
+    guestSection.style.display = 'none';
+    deliverySection.style.display = 'none';
+    complaintSection.style.display = 'none';
+
     if (mode === 'guest') {
       btnMenuGuest.classList.add('active');
-      btnMenuDelivery.classList.remove('active');
       guestSection.style.display = 'block';
-      deliverySection.style.display = 'none';
     } else if (mode === 'delivery') {
-      btnMenuGuest.classList.remove('active');
       btnMenuDelivery.classList.add('active');
-      guestSection.style.display = 'none';
       deliverySection.style.display = 'block';
-    } else {
-      btnMenuGuest.classList.remove('active');
-      btnMenuDelivery.classList.remove('active');
-      guestSection.style.display = 'none';
-      deliverySection.style.display = 'none';
+    } else if (mode === 'complaint') {
+      btnMenuComplaint.classList.add('active');
+      complaintSection.style.display = 'block';
     }
   }
 
-  if (btnMenuGuest && btnMenuDelivery) {
+  if (btnMenuGuest && btnMenuDelivery && btnMenuComplaint) {
     btnMenuGuest.addEventListener('click', () => selectResidentSubMenu('guest'));
     btnMenuDelivery.addEventListener('click', () => selectResidentSubMenu('delivery'));
+    btnMenuComplaint.addEventListener('click', () => selectResidentSubMenu('complaint'));
+  }
+
+  // Live Word Counter for Complaints Text Area (300 words limit)
+  const complaintText = document.getElementById('complaintText');
+  const complaintWordCounter = document.getElementById('complaint-word-counter');
+  
+  if (complaintText && complaintWordCounter) {
+    complaintText.addEventListener('input', () => {
+      const text = complaintText.value.trim();
+      const words = text ? text.split(/\s+/) : [];
+      const wordCount = words.length;
+      complaintWordCounter.innerText = `${wordCount} / 300 kelime`;
+      
+      if (wordCount > 300) {
+        complaintWordCounter.style.color = 'var(--danger)';
+      } else {
+        complaintWordCounter.style.color = 'var(--text-muted)';
+      }
+    });
+  }
+
+  // Resident Complaint Form submission
+  const complaintForm = document.getElementById('complaint-form');
+  if (complaintForm) {
+    complaintForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = complaintText.value.trim();
+      const words = text ? text.split(/\s+/) : [];
+      if (words.length > 300) {
+        showToast('⚠️ Limiti Aştınız', 'Şikayet metniniz 300 kelimeden fazla olamaz.', 'warning');
+        return;
+      }
+
+      const submitBtn = document.getElementById('btn-complaint-submit');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'Gönderiliyor...';
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/complaint`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: JSON.stringify({ text })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Şikayet iletilemedi.');
+        }
+
+        showToast('✅ Şikayet İletildi', 'Şikayetiniz yöneticiye başarıyla ulaştırıldı.', 'success');
+        complaintForm.reset();
+        complaintWordCounter.innerText = '0 / 300 kelime';
+        selectResidentSubMenu('complaint');
+
+      } catch (err) {
+        showToast('❌ Hata', err.message, 'danger');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '⚠️ Şikayeti Gönder';
+      }
+    });
   }
 
   const guestForm = document.getElementById('guest-vehicle-form');
@@ -492,13 +561,18 @@ function loadResidentData() {
   // Reset selector state to no choice active initially
   const btnMenuGuest = document.getElementById('btn-menu-guest');
   const btnMenuDelivery = document.getElementById('btn-menu-delivery');
+  const btnMenuComplaint = document.getElementById('btn-menu-complaint');
   const guestSection = document.getElementById('resident-guest-section');
   const deliverySection = document.getElementById('resident-delivery-section');
-  if (btnMenuGuest && btnMenuDelivery && guestSection && deliverySection) {
+  const complaintSection = document.getElementById('resident-complaint-section');
+  
+  if (btnMenuGuest && btnMenuDelivery && btnMenuComplaint && guestSection && deliverySection && complaintSection) {
     btnMenuGuest.classList.remove('active');
     btnMenuDelivery.classList.remove('active');
+    btnMenuComplaint.classList.remove('active');
     guestSection.style.display = 'none';
     deliverySection.style.display = 'none';
+    complaintSection.style.display = 'none';
   }
 
   loadActiveGuestVehicles();
@@ -810,7 +884,12 @@ function initAdminPanel() {
       tab.classList.add('active');
       
       document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
-      document.getElementById(tab.getAttribute('data-target')).classList.add('active');
+      const target = tab.getAttribute('data-target');
+      document.getElementById(target).classList.add('active');
+
+      if (target === 'admin-section-complaints') {
+        loadAdminComplaints();
+      }
     });
   });
 
@@ -895,6 +974,7 @@ function loadAdminData() {
   
   loadAdminUsers();
   loadAdminVehicles();
+  loadAdminComplaints();
 }
 
 async function loadAdminUsers() {
@@ -1483,3 +1563,59 @@ async function setupPushNotifications() {
   }
 }
 window.setupPushNotifications = setupPushNotifications;
+
+// Load all complaints for the admin
+async function loadAdminComplaints() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/complaint/admin-list`, {
+      headers: { 'Authorization': `Bearer ${currentToken}` }
+    });
+    
+    if (!response.ok) throw new Error('Şikayet listesi yüklenemedi.');
+    
+    const complaints = await response.json();
+    const tableBody = document.getElementById('admin-complaints-table-body');
+    
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+    
+    if (complaints.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 20px;">
+            Henüz bildirilmiş bir şikayet bulunmamaktadır.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+    
+    complaints.forEach(c => {
+      const row = document.createElement('tr');
+      const dateStr = new Date(c.createdDate).toLocaleDateString('tr-TR', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+      const location = `${c.blockNo} Blok - Daire ${c.apartmentNo}`;
+      
+      row.innerHTML = `
+        <td>${dateStr}</td>
+        <td><strong>${location}</strong></td>
+        <td>${c.residentName}</td>
+        <td style="white-space: pre-wrap; max-width: 400px; text-align: left; word-break: break-word;">${escapeHtml(c.text)}</td>
+      `;
+      tableBody.appendChild(row);
+    });
+    
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
