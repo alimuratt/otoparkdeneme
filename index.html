@@ -124,103 +124,124 @@
         </button>
       </div>
 
-      <!-- Function B: Mega Delivery Button (Placed first for high accessibility/elderly priority) -->
-      <div class="card" style="text-align: center;">
-        <h2>Kargo & Sipariş İşlemleri</h2>
-        <p style="color: var(--text-muted); margin-bottom: 16px;">Gelmeyi bekleyen bir teslimatınız varsa alttaki butona basın.</p>
-        <button class="btn btn-mega" id="btn-expect-delivery">
-          <span class="btn-icon">📦</span>
-          <span>Kargo / Sipariş Bekliyorum</span>
-        </button>
-      </div>
-
-      <!-- Active Expected Deliveries List -->
-      <div class="card">
-        <h2>Bekleyen Kargo / Siparişleriniz</h2>
-        <div id="active-deliveries-list" class="list-container">
-          <div class="alert alert-info" id="no-active-deliveries-resident">
-            <span class="alert-icon">ℹ️</span>
-            <div>Şu an beklediğiniz aktif bir kargo/sipariş bulunmamaktadır.</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Function A: Guest Vehicle Adding -->
-      <div class="card">
-        <h2>Misafir Araç Tanımlama</h2>
-        <p style="color: var(--text-muted); margin-bottom: 16px;">Plakayı yazın. Bariyer izni 12 saat süresince geçerli olacaktır.</p>
-        
-        <form id="guest-vehicle-form">
-          <div class="form-group">
-            <label for="guestPlate">Araç Plakası</label>
-            <input type="text" id="guestPlate" placeholder="34ABC123" required maxlength="12">
-          </div>
-          <button type="submit" class="btn btn-success">
-            <span>🚗 Misafir Tanımla</span>
+      <!-- Resident Selector Menu (Big Premium Buttons) -->
+      <div class="card" id="resident-menu-card" style="margin-bottom: 20px;">
+        <h2 style="text-align: center; margin-bottom: 16px; font-weight: 700;">Hızlı İşlem Seçin</h2>
+        <div class="role-selectors" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 0;">
+          <button type="button" class="role-btn" id="btn-menu-guest" style="min-height: 90px; flex-direction: column; justify-content: center; gap: 8px; border: 2px solid rgba(255,255,255,0.05); padding: 12px; border-radius: var(--border-radius-md);">
+            <span class="icon" style="font-size: 2.2rem; margin: 0;">🚗</span>
+            <span style="font-size: 1rem; font-weight: 700;">Misafir Araç Girişi</span>
           </button>
-        </form>
-      </div>
-
-      <!-- Active Guests Countdowns -->
-      <div class="card">
-        <h2>Aktif Misafir Araçlarınız</h2>
-        <div id="active-guests-list" class="list-container">
-          <!-- Dynamically populated countdown cards -->
-          <div class="alert alert-info" id="no-active-guests">
-            <span class="alert-icon">ℹ️</span>
-            <div>Şu an aktif tanımlı misafir aracınız bulunmamaktadır.</div>
-          </div>
+          <button type="button" class="role-btn" id="btn-menu-delivery" style="min-height: 90px; flex-direction: column; justify-content: center; gap: 8px; border: 2px solid rgba(255,255,255,0.05); padding: 12px; border-radius: var(--border-radius-md);">
+            <span class="icon" style="font-size: 2.2rem; margin: 0;">📦</span>
+            <span style="font-size: 1rem; font-weight: 700;">Kargo / Sipariş Bekleme</span>
+          </button>
         </div>
       </div>
 
-      <!-- Mock LPR Simulation Section (TESTING ONLY) -->
-      <div class="card mock-lpr-section">
-        <div class="mock-title">⚡ Test: Kamera Plaka Tanıma (LPR)</div>
-        <p style="color: var(--text-muted); margin-bottom: 12px; font-size: 0.9rem;">
-          Kameranın aracı okuyup bariyeri açtığı ve sakine anlık bildirim gittiği anı simüle edin.
-        </p>
-        <div class="form-group" style="margin-bottom: 12px;">
-          <input type="text" id="mockLprPlate" placeholder="34ABC123" style="text-align: center; height: 48px; font-size: 1.3rem;">
+      <!-- Kargo/Sipariş Seçenekleri Bölümü -->
+      <div id="resident-delivery-section" style="display: none;">
+        <!-- Function B: Mega Delivery Button (Placed first for high accessibility/elderly priority) -->
+        <div class="card" style="text-align: center;">
+          <h2>Kargo & Sipariş İşlemleri</h2>
+          <p style="color: var(--text-muted); margin-bottom: 16px;">Gelmeyi bekleyen bir teslimatınız varsa alttaki butona basın.</p>
+          <button class="btn btn-mega" id="btn-expect-delivery">
+            <span class="btn-icon">📦</span>
+            <span>Kargo / Sipariş Bekliyorum</span>
+          </button>
         </div>
-        <button type="button" class="btn btn-secondary" id="btn-mock-lpr-submit" style="min-height: 48px; width: 100%;">
-          Plakayı Kameradan Oku
-        </button>
 
-        <!-- Real Webcam Scanner Integration -->
-        <div style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;">
-          <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.95rem; color: var(--primary); display: flex; align-items: center; gap: 6px;">
-            <span>📷</span>
-            <span>Gerçek Kamera (Webcam) ile Plaka Oku</span>
-          </div>
-          <p style="color: var(--text-muted); margin-bottom: 12px; font-size: 0.85rem;">
-            Bilgisayarınızın kamerasını açıp plakayı kameraya göstererek tarayabilirsiniz.
-          </p>
-
-          <div id="camera-container" style="display: none; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 12px; position: relative;">
-            <div style="position: relative; width: 100%; max-width: 320px; overflow: hidden; border-radius: 8px;">
-              <video id="camera-feed" autoplay playsinline style="width: 100%; display: block; border: 2px solid var(--primary); border-radius: 8px;"></video>
-              
-              <!-- Scanning Guide Overlay (Vignette) -->
-              <div id="camera-guide" style="position: absolute; top: 30%; left: 10%; width: 80%; height: 40%; border: 3px dashed var(--success); border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4); pointer-events: none; display: flex; align-items: center; justify-content: center; box-sizing: border-box;">
-                <span style="color: #fff; font-size: 0.75rem; font-weight: bold; background: var(--success); padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">PLAKAYI BURAYA HİZALAYIN</span>
-              </div>
+        <!-- Active Expected Deliveries List -->
+        <div class="card">
+          <h2>Bekleyen Kargo / Siparişleriniz</h2>
+          <div id="active-deliveries-list" class="list-container">
+            <div class="alert alert-info" id="no-active-deliveries-resident">
+              <span class="alert-icon">ℹ️</span>
+              <div>Şu an beklediğiniz aktif bir kargo/sipariş bulunmamaktadır.</div>
             </div>
-            <canvas id="camera-canvas" style="display: none; width: 100%; max-width: 320px; border-radius: 8px; border: 2px dashed var(--warning); margin-top: 4px; margin-bottom: 4px;"></canvas>
-            <button type="button" class="btn btn-success" id="btn-camera-capture" style="width: 100%; max-width: 320px; min-height: 44px;">
-              📸 Fotoğraf Çek ve Plaka Tara
-            </button>
           </div>
-
-          <button type="button" class="btn btn-secondary" id="btn-toggle-camera" style="min-height: 44px; width: 100%;">
-            🎥 Web Kamerayı Başlat
-          </button>
-          <input type="file" id="camera-file-input" accept="image/*" capture="environment" style="display: none;">
-          <button type="button" class="btn btn-secondary" id="btn-upload-photo" style="min-height: 44px; width: 100%; margin-top: 8px;">
-            📷 Fotoğraf Seç / Çek (Alternatif)
-          </button>
-          <div id="ocr-status" style="font-size: 0.85rem; color: var(--warning); margin-top: 8px; text-align: center; font-weight: 600;"></div>
         </div>
-      </div>
+      </div> <!-- End resident-delivery-section -->
+
+      <!-- Misafir Araç Seçenekleri Bölümü -->
+      <div id="resident-guest-section" style="display: none;">
+        <!-- Function A: Guest Vehicle Adding -->
+        <div class="card">
+          <h2>Misafir Araç Tanımlama</h2>
+          <p style="color: var(--text-muted); margin-bottom: 16px;">Plakayı yazın. Bariyer izni 12 saat süresince geçerli olacaktır.</p>
+          
+          <form id="guest-vehicle-form">
+            <div class="form-group">
+              <label for="guestPlate">Araç Plakası</label>
+              <input type="text" id="guestPlate" placeholder="34ABC123" required maxlength="12">
+            </div>
+            <button type="submit" class="btn btn-success">
+              <span>🚗 Misafir Tanımla</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Active Guests Countdowns -->
+        <div class="card">
+          <h2>Aktif Misafir Araçlarınız</h2>
+          <div id="active-guests-list" class="list-container">
+            <!-- Dynamically populated countdown cards -->
+            <div class="alert alert-info" id="no-active-guests">
+              <span class="alert-icon">ℹ️</span>
+              <div>Şu an aktif tanımlı misafir aracınız bulunmamaktadır.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mock LPR Simulation Section (TESTING ONLY) -->
+        <div class="card mock-lpr-section">
+          <div class="mock-title">⚡ Test: Kamera Plaka Tanıma (LPR)</div>
+          <p style="color: var(--text-muted); margin-bottom: 12px; font-size: 0.9rem;">
+            Kameranın aracı okuyup bariyeri açtığı ve sakine anlık bildirim gittiği anı simüle edin.
+          </p>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <input type="text" id="mockLprPlate" placeholder="34ABC123" style="text-align: center; height: 48px; font-size: 1.3rem;">
+          </div>
+          <button type="button" class="btn btn-secondary" id="btn-mock-lpr-submit" style="min-height: 48px; width: 100%;">
+            Plakayı Kameradan Oku
+          </button>
+
+          <!-- Real Webcam Scanner Integration -->
+          <div style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;">
+            <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.95rem; color: var(--primary); display: flex; align-items: center; gap: 6px;">
+              <span>📷</span>
+              <span>Gerçek Kamera (Webcam) ile Plaka Oku</span>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom: 12px; font-size: 0.85rem;">
+              Bilgisayarınızın kamerasını açıp plakayı kameraya göstererek tarayabilirsiniz.
+            </p>
+
+            <div id="camera-container" style="display: none; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 12px; position: relative;">
+              <div style="position: relative; width: 100%; max-width: 320px; overflow: hidden; border-radius: 8px;">
+                <video id="camera-feed" autoplay playsinline style="width: 100%; display: block; border: 2px solid var(--primary); border-radius: 8px;"></video>
+                
+                <!-- Scanning Guide Overlay (Vignette) -->
+                <div id="camera-guide" style="position: absolute; top: 30%; left: 10%; width: 80%; height: 40%; border: 3px dashed var(--success); border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4); pointer-events: none; display: flex; align-items: center; justify-content: center; box-sizing: border-box;">
+                  <span style="color: #fff; font-size: 0.75rem; font-weight: bold; background: var(--success); padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">PLAKAYI BURAYA HİZALAYIN</span>
+                </div>
+              </div>
+              <canvas id="camera-canvas" style="display: none; width: 100%; max-width: 320px; border-radius: 8px; border: 2px dashed var(--warning); margin-top: 4px; margin-bottom: 4px;"></canvas>
+              <button type="button" class="btn btn-success" id="btn-camera-capture" style="width: 100%; max-width: 320px; min-height: 44px;">
+                📸 Fotoğraf Çek ve Plaka Tara
+              </button>
+            </div>
+
+            <button type="button" class="btn btn-secondary" id="btn-toggle-camera" style="min-height: 44px; width: 100%;">
+              🎥 Web Kamerayı Başlat
+            </button>
+            <input type="file" id="camera-file-input" accept="image/*" capture="environment" style="display: none;">
+            <button type="button" class="btn btn-secondary" id="btn-upload-photo" style="min-height: 44px; width: 100%; margin-top: 8px;">
+              📷 Fotoğraf Seç / Çek (Alternatif)
+            </button>
+            <div id="ocr-status" style="font-size: 0.85rem; color: var(--warning); margin-top: 8px; text-align: center; font-weight: 600;"></div>
+          </div>
+        </div>
+      </div> <!-- End resident-guest-section -->
     </main>
 
     <!-- ========================================== -->

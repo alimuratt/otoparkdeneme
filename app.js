@@ -368,6 +368,36 @@ function startSignalR() {
 // RESIDENT PANEL LOGIC (SAKİN)
 // ==========================================
 function initResidentPanel() {
+  // Resident Sub-menu Quick Selector
+  const btnMenuGuest = document.getElementById('btn-menu-guest');
+  const btnMenuDelivery = document.getElementById('btn-menu-delivery');
+  const guestSection = document.getElementById('resident-guest-section');
+  const deliverySection = document.getElementById('resident-delivery-section');
+
+  function selectResidentSubMenu(mode) {
+    if (mode === 'guest') {
+      btnMenuGuest.classList.add('active');
+      btnMenuDelivery.classList.remove('active');
+      guestSection.style.display = 'block';
+      deliverySection.style.display = 'none';
+    } else if (mode === 'delivery') {
+      btnMenuGuest.classList.remove('active');
+      btnMenuDelivery.classList.add('active');
+      guestSection.style.display = 'none';
+      deliverySection.style.display = 'block';
+    } else {
+      btnMenuGuest.classList.remove('active');
+      btnMenuDelivery.classList.remove('active');
+      guestSection.style.display = 'none';
+      deliverySection.style.display = 'none';
+    }
+  }
+
+  if (btnMenuGuest && btnMenuDelivery) {
+    btnMenuGuest.addEventListener('click', () => selectResidentSubMenu('guest'));
+    btnMenuDelivery.addEventListener('click', () => selectResidentSubMenu('delivery'));
+  }
+
   const guestForm = document.getElementById('guest-vehicle-form');
   const plateInput = document.getElementById('guestPlate');
   
@@ -459,6 +489,18 @@ function loadResidentData() {
   document.getElementById('resident-avatar').innerText = currentUser.name.split(' ').map(n => n[0]).join('').substring(0,2);
   document.getElementById('resident-apartment-details').innerText = `${currentUser.blockNo}/${currentUser.apartmentNo}`;
   
+  // Reset selector state to no choice active initially
+  const btnMenuGuest = document.getElementById('btn-menu-guest');
+  const btnMenuDelivery = document.getElementById('btn-menu-delivery');
+  const guestSection = document.getElementById('resident-guest-section');
+  const deliverySection = document.getElementById('resident-delivery-section');
+  if (btnMenuGuest && btnMenuDelivery && guestSection && deliverySection) {
+    btnMenuGuest.classList.remove('active');
+    btnMenuDelivery.classList.remove('active');
+    guestSection.style.display = 'none';
+    deliverySection.style.display = 'none';
+  }
+
   loadActiveGuestVehicles();
   loadActiveDeliveries();
 }
