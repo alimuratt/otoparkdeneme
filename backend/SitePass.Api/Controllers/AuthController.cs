@@ -5,6 +5,7 @@ using SitePass.Core.Entities;
 using SitePass.Core.Enums;
 using SitePass.Infrastructure.Data;
 using SitePass.Infrastructure.Security;
+using SitePass.Infrastructure.Services;
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -19,11 +20,13 @@ namespace SitePass.Api.Controllers
     {
         private readonly SitePassDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly PushNotificationService _pushService;
 
-        public AuthController(SitePassDbContext context, IConfiguration configuration)
+        public AuthController(SitePassDbContext context, IConfiguration configuration, PushNotificationService pushService)
         {
             _context = context;
             _configuration = configuration;
+            _pushService = pushService;
         }
 
         public class LoginRequest
@@ -100,6 +103,37 @@ namespace SitePass.Api.Controllers
             });
         }
 
+        [HttpGet("vapid-public-key")]
+        public IActionResult GetVapidPublicKey()
+        {
+            var publicKey = _pushService.GetPublicKey();
+            return Ok(new { PublicKey = publicKey });
+        }
 
+        [HttpPost("subscribe-push")]
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        public async Task<IActionResult> SubscribePush([FromBody] PushSubscriptionRequest request)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out var userId))
+            {
+                return Unauthorized(new { Message = "Kullanıcı kimliği geçersiz." });
+            }
+
+            if (request == null || string.IsNullOrEmpty(request.Endpoint) || string.IsNullOrEmpty(request.P256dh) || string.IsNullOrEmpty(request.Auth))
+            {
+                return BadRequest(new { Message = "Geçersiz push abonelik verisi." });
+            }
+
+            await _pushService.SaveSubscriptionAsync(userId, request.Endpoint, request.P256dh, request.Auth);
+            return Ok(new { Success = true, Message = "Push bildirim aboneliği başarıyla kaydedildi." });
+        }
+
+        public class PushSubscriptionRequest
+        {
+            public string Endpoint { get; set; } = string.Empty;
+            public string P256dh { get; set; } = string.Empty;
+            public string Auth { get; set; } = string.Empty;
+        }
     }
 }

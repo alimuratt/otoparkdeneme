@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sitepass-cache-v1';
+const CACHE_NAME = 'sitepass-cache-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -66,6 +66,53 @@ self.addEventListener('fetch', (event) => {
         // Return cached version if available immediately, while fetching the latest in the background
         return cachedResponse || fetchPromise;
       });
+    })
+  );
+});
+
+// Push Event - Receive background notifications when app is closed
+self.addEventListener('push', (event) => {
+  let data = { title: '🚗 SitePass Bildirim', message: 'Yeni bir olay gerçekleşti.' };
+  try {
+    if (event.data) {
+      const payload = event.data.json();
+      data.title = payload.title || data.title;
+      data.message = payload.message || data.message;
+    }
+  } catch (e) {
+    if (event.data) {
+      data.message = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.message,
+    icon: './assets/icons/icon-192.png',
+    badge: './assets/icons/icon-192.png',
+    vibrate: [200, 100, 200],
+    data: {
+      url: './'
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Notification Click Event - Open PWA when user clicks the notification
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.registration.scope) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('./');
+      }
     })
   );
 });

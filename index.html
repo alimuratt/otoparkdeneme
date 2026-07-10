@@ -110,6 +110,20 @@
         <button class="btn btn-secondary btn-logout" onclick="logout()">Çıkış</button>
       </div>
 
+      <!-- Web Push Notification Permission Prompt Card -->
+      <div id="push-notification-banner" class="card" style="display: none; background: linear-gradient(135deg, rgba(235, 94, 85, 0.15) 0%, rgba(235, 94, 85, 0.05) 100%); border: 1px solid var(--primary); align-items: center; justify-content: space-between; flex-direction: row; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 250px;">
+          <span style="font-size: 1.8rem;">🔔</span>
+          <div style="text-align: left;">
+            <div style="font-weight: 700; color: var(--primary); font-size: 1rem; margin-bottom: 2px;">Telefon Bildirimlerini Etkinleştirin</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted);">Misafirleriniz siteye giriş yaptığında, uygulama kapalıyken bile telefonunuza anlık bildirim gelsin.</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btn-enable-push" style="white-space: nowrap; padding: 10px 16px; font-size: 0.9rem; min-height: unset; margin: 0; align-self: center;">
+          Bildirimleri Aç
+        </button>
+      </div>
+
       <!-- Function B: Mega Delivery Button (Placed first for high accessibility/elderly priority) -->
       <div class="card" style="text-align: center;">
         <h2>Kargo & Sipariş İşlemleri</h2>
@@ -168,9 +182,44 @@
         <div class="form-group" style="margin-bottom: 12px;">
           <input type="text" id="mockLprPlate" placeholder="34ABC123" style="text-align: center; height: 48px; font-size: 1.3rem;">
         </div>
-        <button type="button" class="btn btn-secondary" id="btn-mock-lpr-submit" style="min-height: 48px;">
+        <button type="button" class="btn btn-secondary" id="btn-mock-lpr-submit" style="min-height: 48px; width: 100%;">
           Plakayı Kameradan Oku
         </button>
+
+        <!-- Real Webcam Scanner Integration -->
+        <div style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;">
+          <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.95rem; color: var(--primary); display: flex; align-items: center; gap: 6px;">
+            <span>📷</span>
+            <span>Gerçek Kamera (Webcam) ile Plaka Oku</span>
+          </div>
+          <p style="color: var(--text-muted); margin-bottom: 12px; font-size: 0.85rem;">
+            Bilgisayarınızın kamerasını açıp plakayı kameraya göstererek tarayabilirsiniz.
+          </p>
+
+          <div id="camera-container" style="display: none; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 12px; position: relative;">
+            <div style="position: relative; width: 100%; max-width: 320px; overflow: hidden; border-radius: 8px;">
+              <video id="camera-feed" autoplay playsinline style="width: 100%; display: block; border: 2px solid var(--primary); border-radius: 8px;"></video>
+              
+              <!-- Scanning Guide Overlay (Vignette) -->
+              <div id="camera-guide" style="position: absolute; top: 30%; left: 10%; width: 80%; height: 40%; border: 3px dashed var(--success); border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4); pointer-events: none; display: flex; align-items: center; justify-content: center; box-sizing: border-box;">
+                <span style="color: #fff; font-size: 0.75rem; font-weight: bold; background: var(--success); padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">PLAKAYI BURAYA HİZALAYIN</span>
+              </div>
+            </div>
+            <canvas id="camera-canvas" style="display: none; width: 100%; max-width: 320px; border-radius: 8px; border: 2px dashed var(--warning); margin-top: 4px; margin-bottom: 4px;"></canvas>
+            <button type="button" class="btn btn-success" id="btn-camera-capture" style="width: 100%; max-width: 320px; min-height: 44px;">
+              📸 Fotoğraf Çek ve Plaka Tara
+            </button>
+          </div>
+
+          <button type="button" class="btn btn-secondary" id="btn-toggle-camera" style="min-height: 44px; width: 100%;">
+            🎥 Web Kamerayı Başlat
+          </button>
+          <input type="file" id="camera-file-input" accept="image/*" capture="environment" style="display: none;">
+          <button type="button" class="btn btn-secondary" id="btn-upload-photo" style="min-height: 44px; width: 100%; margin-top: 8px;">
+            📷 Fotoğraf Seç / Çek (Alternatif)
+          </button>
+          <div id="ocr-status" style="font-size: 0.85rem; color: var(--warning); margin-top: 8px; text-align: center; font-weight: 600;"></div>
+        </div>
       </div>
     </main>
 
@@ -338,8 +387,24 @@
 
   </div>
 
+  <!-- Modern Web Push Permission Prompt Modal -->
+  <div id="push-permission-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-icon">🔔</div>
+      <h2>Bildirimleri Etkinleştirin</h2>
+      <p>Misafirleriniz siteye giriş yaptığında, uygulama kapalıyken veya telefonunuz kilitliyken bile kilit ekranınıza anlık bildirim gönderilmesini ister misiniz?</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="btn-modal-enable-push">Etkinleştir</button>
+        <button class="btn btn-secondary" id="btn-modal-close-push" style="margin: 0;">Daha Sonra</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SignalR Library (CDN) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+  
+  <!-- Tesseract.js OCR Library -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   
   <!-- Frontend Logic -->
   <script src="app.js"></script>

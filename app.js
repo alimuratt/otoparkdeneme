@@ -1,8 +1,15 @@
 // API Configuration - Set backend base URLs dynamically
-const BACKEND_PORT = "5250";
-const BACKEND_HOST = window.location.hostname;
-const API_BASE_URL = `http://${BACKEND_HOST}:${BACKEND_PORT}/api`;
-const HUB_URL = `http://${BACKEND_HOST}:${BACKEND_PORT}/hub/notifications`;
+const backendHost = (window.location.hostname && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1")
+  ? window.location.hostname
+  : "localhost";
+
+const API_BASE_URL = (window.location.protocol === "file:" || window.location.port === "8000" || window.location.port === "3000")
+  ? `http://${backendHost}:5250/api`
+  : `${window.location.origin}/api`;
+
+const HUB_URL = (window.location.protocol === "file:" || window.location.port === "8000" || window.location.port === "3000")
+  ? `http://${backendHost}:5250/hub/notifications`
+  : `${window.location.origin}/hub/notifications`;
 
 // App State
 let currentUser = null;
@@ -49,6 +56,37 @@ document.addEventListener('DOMContentLoaded', () => {
   initResidentPanel();
   initAdminPanel();
   initMockLpr();
+
+  // Push Notification Enable Button Click (Banner)
+  const btnEnablePush = document.getElementById('btn-enable-push');
+  if (btnEnablePush) {
+    btnEnablePush.addEventListener('click', async () => {
+      await setupPushNotifications();
+      if (Notification.permission === 'granted') {
+        const pushBanner = document.getElementById('push-notification-banner');
+        if (pushBanner) pushBanner.style.display = 'none';
+      }
+    });
+  }
+
+  // Push Permission Modal Events
+  const btnModalEnablePush = document.getElementById('btn-modal-enable-push');
+  const btnModalClosePush = document.getElementById('btn-modal-close-push');
+  const pushModal = document.getElementById('push-permission-modal');
+
+  if (btnModalEnablePush && pushModal) {
+    btnModalEnablePush.addEventListener('click', async () => {
+      await setupPushNotifications();
+      pushModal.style.display = 'none';
+    });
+  }
+
+  if (btnModalClosePush && pushModal) {
+    btnModalClosePush.addEventListener('click', () => {
+      sessionStorage.setItem('push_prompted', 'true');
+      pushModal.style.display = 'none';
+    });
+  }
   
   // Check if session or localStorage contains token (Remember Me)
   const savedToken = localStorage.getItem('sitepass_token') || sessionStorage.getItem('sitepass_token');
@@ -59,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentUser = JSON.parse(savedUser);
     showPanelForRole(currentUser.role);
     startSignalR();
+    setupPushNotifications();
   }
 });
 
@@ -82,6 +121,27 @@ function showPanelForRole(role) {
   if (role === 'Resident') {
     document.getElementById('view-resident').classList.add('active');
     loadResidentData();
+    
+    // Manage push banner display
+    const pushBanner = document.getElementById('push-notification-banner');
+    if (pushBanner) {
+      if ('Notification' in window && Notification.permission !== 'granted') {
+        pushBanner.style.display = 'flex';
+      } else {
+        pushBanner.style.display = 'none';
+      }
+    }
+
+    // Manage push modal display (prompt immediately on login/auto-login)
+    const pushModal = document.getElementById('push-permission-modal');
+    if (pushModal) {
+      const alreadyPrompted = sessionStorage.getItem('push_prompted');
+      if ('Notification' in window && Notification.permission !== 'granted' && !alreadyPrompted) {
+        pushModal.style.display = 'flex';
+      } else {
+        pushModal.style.display = 'none';
+      }
+    }
   } else if (role === 'Security') {
     document.getElementById('view-security').classList.add('active');
     loadSecurityData();
@@ -216,6 +276,7 @@ function initLoginForm() {
       showToast('🎉 Giriş Başarılı', `Hoş geldiniz, Sn. ${currentUser.name}`, 'success');
       showPanelForRole(currentUser.role);
       startSignalR();
+      setupPushNotifications();
       
     } catch (err) {
       showToast('❌ Giriş Hatası', err.message, 'danger');
@@ -243,6 +304,49 @@ function startSignalR() {
     console.log("Real-time notification received: ", notification);
     showToast(notification.title, notification.message, "success");
     
+    // Play a premium alert sound using Web Audio API
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // Beep 1
+      const osc1 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      osc1.connect(gain1);
+      gain1.connect(audioCtx.destination);
+      osc1.frequency.setValueAtTime(880, audioCtx.currentTime);
+      gain1.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+      osc1.start();
+      osc1.stop(audioCtx.currentTime + 0.15);
+      
+      // Beep 2
+      setTimeout(() => {
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        gain2.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        osc2.start();
+        osc2.stop(audioCtx.currentTime + 0.25);
+      }, 80);
+    } catch (e) {
+      console.warn("Could not play notification sound:", e);
+    }
+
+    // Speak the notification title and message using Speech Synthesis
+    if ('speechSynthesis' in window) {
+      try {
+        const utterance = new SpeechSynthesisUtterance("Misafiriniz siteye giriş yapmıştır.");
+        utterance.lang = 'tr-TR';
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {
+        console.warn("Text-to-Speech failed:", e);
+      }
+    }
+
     // Auto refresh active lists depending on current active panel
     if (currentUser && currentUser.role === 'Resident') {
       loadActiveGuestVehicles();
@@ -361,8 +465,12 @@ function loadResidentData() {
 
 async function loadActiveDeliveries() {
   try {
-    const response = await fetch(`${API_BASE_URL}/delivery/my-active`, {
-      headers: { 'Authorization': `Bearer ${currentToken}` }
+    const response = await fetch(`${API_BASE_URL}/delivery/my-active?t=${Date.now()}`, {
+      headers: {
+        'Authorization': `Bearer ${currentToken}`,
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
     });
     
     if (!response.ok) throw new Error('Bekleyen kargolar yüklenemedi.');
@@ -433,8 +541,12 @@ window.cancelDelivery = cancelDelivery;
 
 async function loadActiveGuestVehicles() {
   try {
-    const response = await fetch(`${API_BASE_URL}/vehicle/active-guests`, {
-      headers: { 'Authorization': `Bearer ${currentToken}` }
+    const response = await fetch(`${API_BASE_URL}/vehicle/active-guests?t=${Date.now()}`, {
+      headers: {
+        'Authorization': `Bearer ${currentToken}`,
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
     });
     
     if (!response.ok) throw new Error('Misafir listesi yüklenemedi.');
@@ -459,6 +571,9 @@ async function loadActiveGuestVehicles() {
     vehicles.forEach(vehicle => {
       const item = document.createElement('div');
       item.className = 'list-item';
+      if (vehicle.remainingSeconds <= 0) {
+        item.classList.add('passive-card');
+      }
       item.innerHTML = `
         <div class="list-item-details">
           <div class="plate-badge">${vehicle.plate}</div>
@@ -497,18 +612,33 @@ function startCountdownTicker() {
       
       if (secondsLeft <= 0) {
         timer.innerHTML = '<span class="countdown-expired">Süre Doldu (Pasif)</span>';
-        timer.parentElement.previousElementSibling.querySelector('.plate-badge').style.opacity = '0.5';
+        
+        // Hide countdown label when expired
+        const label = timer.previousElementSibling;
+        if (label && label.classList.contains('countdown-label')) {
+          label.style.display = 'none';
+        }
+        
+        const card = timer.closest('.list-item');
+        if (card) {
+          card.classList.add('passive-card');
+        }
       } else {
         activeTimers++;
         secondsLeft--;
         timer.setAttribute('data-seconds', secondsLeft);
         
-        const hrs = Math.floor(secondsLeft / 3600);
-        const mins = Math.floor((secondsLeft % 3600) / 60);
+        const mins = Math.floor(secondsLeft / 60);
         const secs = secondsLeft % 60;
         
-        // Large & clean label for elderly: "XX saat YY dakika"
-        timer.innerText = `${hrs} saat ${mins} dakika ${secs} sn`;
+        // Hide standard label to display single beautiful string
+        const label = timer.previousElementSibling;
+        if (label && label.classList.contains('countdown-label')) {
+          label.style.display = 'none';
+        }
+        
+        // "Bariyer İzninin Bitmesine: XX dk YY sn kaldı" format
+        timer.innerText = `Bariyer İzninin Bitmesine: ${mins} dk ${secs} sn kaldı`;
       }
     });
     
@@ -861,10 +991,316 @@ function initMockLpr() {
   const mockPlateInput = document.getElementById('mockLprPlate');
   const mockSubmitBtn = document.getElementById('btn-mock-lpr-submit');
   
+  // Webcam elements
+  const btnToggleCamera = document.getElementById('btn-toggle-camera');
+  const cameraContainer = document.getElementById('camera-container');
+  const cameraFeed = document.getElementById('camera-feed');
+  const cameraCanvas = document.getElementById('camera-canvas');
+  const btnCameraCapture = document.getElementById('btn-camera-capture');
+  const ocrStatus = document.getElementById('ocr-status');
+
+  // Camera File Input Fallback for Mobile HTTP
+  const cameraFileInput = document.getElementById('camera-file-input');
+  const btnUploadPhoto = document.getElementById('btn-upload-photo');
+
+  let stream = null;
+  
   mockPlateInput.addEventListener('input', (e) => {
     e.target.value = e.target.value.toUpperCase().replace(/\s/g, '').replace(/ı/g, 'I').replace(/i/g, 'İ');
   });
 
+  // Toggle Camera Feed
+  btnToggleCamera.addEventListener('click', async () => {
+    if (stream) {
+      stopCamera();
+    } else {
+      await startCamera();
+    }
+  });
+
+  async function startCamera() {
+    try {
+      ocrStatus.innerText = "Kamera başlatılıyor...";
+      
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Tarayıcınız veya bağlantı protokolünüz kamera erişimini engelliyor. Lütfen sayfaya 'http://localhost:8000' adresiyle (IP adresi yerine) bağlandığınızdan emin olun.");
+      }
+      
+      stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }, 
+        audio: false 
+      });
+      cameraFeed.srcObject = stream;
+      cameraContainer.style.display = 'flex';
+      btnToggleCamera.innerText = '🛑 Kamerayı Kapat';
+      btnToggleCamera.className = 'btn btn-danger';
+      ocrStatus.innerText = "Kamera hazır. Plakayı kadraja ortalayıp butona basın.";
+    } catch (err) {
+      console.error(err);
+      ocrStatus.innerText = "⚠️ " + err.message;
+      showToast('❌ Kamera Hatası', err.message, 'danger');
+    }
+  }
+
+  function stopCamera() {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+    cameraFeed.srcObject = null;
+    cameraContainer.style.display = 'none';
+    btnToggleCamera.innerText = '🎥 Web Kamerayı Başlat';
+    btnToggleCamera.className = 'btn btn-secondary';
+    ocrStatus.innerText = "";
+  }
+
+  // Smart character correction heuristic specifically for Turkish plates
+  function normalizeAndCorrectPlate(text) {
+    let clean = text.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/İ/g, 'I');
+    if (clean.length < 5 || clean.length > 10) return clean;
+
+    const letterToDigit = {
+      'O': '0', 'Q': '0', 'D': '0',
+      'I': '1', 'L': '1', 'T': '1', 'J': '1',
+      'Z': '2', 'B': '8', 'S': '5', 'G': '5', 'A': '4'
+    };
+    
+    const digitToLetter = {
+      '0': 'O', '1': 'I', '2': 'Z', '5': 'S', '8': 'B', '4': 'A'
+    };
+
+    function isLetterLike(char) {
+      if (!char) return false;
+      return /[A-Z]/.test(char) || ['0', '1', '2', '5', '8', '4'].includes(char);
+    }
+
+    // Partitioning: Turkish plates always start with 2-digit city code (index 0,1)
+    let part1 = clean.substring(0, 2);
+    let letterLen = 1;
+
+    // Detect middle letter section length (index 2 onwards)
+    if (isLetterLike(clean[2])) {
+      if (isLetterLike(clean[3])) {
+        if (isLetterLike(clean[4]) && clean.length > 6) {
+          letterLen = 3;
+        } else {
+          letterLen = 2;
+        }
+      } else {
+        letterLen = 1;
+      }
+    }
+
+    let part2 = clean.substring(2, 2 + letterLen);
+    let part3 = clean.substring(2 + letterLen);
+
+    // Correct Part 1: First 2 chars must be digits
+    let correctedPart1 = "";
+    for (let char of part1) {
+      correctedPart1 += letterToDigit[char] || char;
+    }
+
+    // Correct Part 2: Middle chars must be letters
+    let correctedPart2 = "";
+    for (let char of part2) {
+      correctedPart2 += digitToLetter[char] || char;
+    }
+
+    // Correct Part 3: Last 2-4 chars must be digits
+    let correctedPart3 = "";
+    for (let char of part3) {
+      correctedPart3 += letterToDigit[char] || char;
+    }
+
+    const corrected = correctedPart1 + correctedPart2 + correctedPart3;
+    console.log(`OCR Correction Helper: ${clean} -> ${corrected}`);
+    return corrected;
+  }
+
+  // Shared OCR response handler
+  function processOcrResult(result) {
+    const rawText = result.data.text || "";
+    const rawTextTrimmed = rawText.trim().replace(/\n/g, ' ');
+    console.log("OCR Raw Output:", rawTextTrimmed);
+
+    // Clean raw text to uppercase and keep letters, digits, and spaces
+    let cleanText = rawText.toUpperCase()
+      .replace(/[^A-Z0-9\s]/g, '')
+      .replace(/I/g, 'I').replace(/İ/g, 'I');
+
+    // Split into words
+    const words = cleanText.split(/\s+/).map(w => w.trim()).filter(w => w.length > 0);
+    console.log("Processed words:", words);
+
+    let bestCandidate = "";
+
+    // 1. Look for a single word that contains a plate (e.g. "34ABC123" or "34AB876")
+    for (let i = 0; i < words.length; i++) {
+      let w = words[i];
+      if (w.length >= 5 && w.length <= 9) {
+        const hasLetter = /[A-Z]/.test(w);
+        const hasDigit = /[0-9]/.test(w);
+        if (hasLetter && hasDigit) {
+          bestCandidate = normalizeAndCorrectPlate(w);
+          break;
+        }
+      }
+    }
+
+    // 2. If not found, look for 3 consecutive words (e.g. ["34", "ABC", "123"])
+    if (!bestCandidate) {
+      for (let i = 0; i < words.length - 2; i++) {
+        let w1 = words[i];
+        let w2 = words[i+1];
+        let w3 = words[i+2];
+        
+        if (w1.length === 2 && w2.length >= 1 && w2.length <= 3 && w3.length >= 2 && w3.length <= 4) {
+          const combined = w1 + w2 + w3;
+          const hasLetter = /[A-Z]/.test(combined);
+          const hasDigit = /[0-9]/.test(combined);
+          if (hasLetter && hasDigit) {
+            bestCandidate = normalizeAndCorrectPlate(combined);
+            break;
+          }
+        }
+      }
+    }
+
+    // 3. If still not found, collapse everything and search using regex
+    if (!bestCandidate) {
+      const collapsed = cleanText.replace(/\s+/g, '');
+      // Search for Turkish plate pattern anywhere in collapsed string
+      const plateRegex = /([0-9A-Z]{2}[A-Z0-9]{1,3}[0-9A-Z]{2,4})/;
+      const match = collapsed.match(plateRegex);
+      if (match && match[1]) {
+        bestCandidate = normalizeAndCorrectPlate(match[1]);
+      }
+    }
+
+    if (bestCandidate && bestCandidate.length >= 5) {
+      mockPlateInput.value = bestCandidate;
+      ocrStatus.innerHTML = `🟢 Plaka Okundu: <span style="color:var(--success); font-size:1.1rem; font-weight:800;">${bestCandidate}</span>`;
+      showToast('✅ Plaka Okundu', `Kameradan okunan plaka: ${bestCandidate}`, 'success');
+      
+      // Auto submit after 1.5s
+      setTimeout(() => {
+        mockSubmitBtn.click();
+        stopCamera();
+      }, 1500);
+    } else {
+      // Fallback: put whatever it read to help them edit
+      const rawCleaned = cleanText.replace(/\s+/g, '');
+      const correctedRaw = normalizeAndCorrectPlate(rawCleaned);
+      
+      if (correctedRaw.length > 2) {
+        mockPlateInput.value = correctedRaw;
+        ocrStatus.innerHTML = `🟡 Emin Değiliz (Lütfen Düzenleyin): <span style="color:var(--warning); font-size:1.1rem; font-weight:800;">${correctedRaw}</span>`;
+        showToast('⚠️ Plaka Net Okunamadı', `Okunan ham metin: ${correctedRaw}`, 'warning');
+      } else {
+        ocrStatus.innerHTML = `❌ Plaka okunamadı. <br><span style="color:var(--text-muted); font-size:0.8rem;">Ham Okunan: "${rawTextTrimmed || 'Boş'}"</span>`;
+        showToast('❌ Okuma Başarısız', 'Plaka okunamadı. Lütfen ışığı ayarlayıp tekrar deneyin.', 'danger');
+      }
+    }
+  }
+
+  // Camera capture button event
+  btnCameraCapture.addEventListener('click', async () => {
+    if (!stream) return;
+
+    btnCameraCapture.disabled = true;
+    btnCameraCapture.innerText = '⚡ Analiz Ediliyor...';
+    ocrStatus.innerText = "🔍 Görüntü yakalandı, plaka taranıyor...";
+    
+    // Show canvas snapshot preview
+    cameraCanvas.style.display = 'block';
+
+    try {
+      const videoW = cameraFeed.videoWidth;
+      const videoH = cameraFeed.videoHeight;
+      
+      // Capture the full high-res frame from video to prevent cropping mismatch
+      cameraCanvas.width = videoW;
+      cameraCanvas.height = videoH;
+      
+      const ctx = cameraCanvas.getContext('2d');
+      ctx.drawImage(cameraFeed, 0, 0, videoW, videoH);
+
+      // Run Tesseract OCR using the high-compatibility recognize method
+      const result = await Tesseract.recognize(cameraCanvas, 'eng', {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            ocrStatus.innerText = `🔍 Plaka Okunuyor: %${Math.round(m.progress * 100)}`;
+          }
+        }
+      });
+      processOcrResult(result);
+    } catch (err) {
+      console.error(err);
+      ocrStatus.innerText = "❌ Hata: Plaka okuma motoru çalıştırılamadı.";
+      showToast('❌ Hata', 'OCR işlemi esnasında bir hata oluştu.', 'danger');
+    } finally {
+      btnCameraCapture.disabled = false;
+      btnCameraCapture.innerText = '📸 Fotoğraf Çek ve Plaka Tara';
+      
+      // Hide preview canvas after 6 seconds
+      setTimeout(() => {
+        cameraCanvas.style.display = 'none';
+      }, 6000);
+    }
+  });
+
+  // Alternative Mobile Image Capture File Upload Handlers
+  if (btnUploadPhoto && cameraFileInput) {
+    btnUploadPhoto.addEventListener('click', () => {
+      cameraFileInput.click();
+    });
+
+    cameraFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      ocrStatus.innerText = "🔍 Görsel yükleniyor...";
+      const reader = new FileReader();
+      
+      reader.onload = async (event) => {
+        const img = new Image();
+        img.onload = async () => {
+          // Draw image to canvas
+          cameraCanvas.style.display = 'block';
+          cameraCanvas.width = img.width;
+          cameraCanvas.height = img.height;
+          const ctx = cameraCanvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, img.width, img.height);
+
+          ocrStatus.innerText = "🔍 Görsel analiz ediliyor, plaka taranıyor...";
+          try {
+            // Run Tesseract OCR on the loaded image canvas
+            const result = await Tesseract.recognize(cameraCanvas, 'eng', {
+              logger: m => {
+                if (m.status === 'recognizing text') {
+                  ocrStatus.innerText = `🔍 Plaka Okunuyor: %${Math.round(m.progress * 100)}`;
+                }
+              }
+            });
+            processOcrResult(result);
+          } catch (err) {
+            console.error(err);
+            ocrStatus.innerText = "❌ Hata: Görselden plaka okunamadı.";
+            showToast('❌ Hata', 'OCR işlemi esnasında bir hata oluştu.', 'danger');
+          } finally {
+            // Hide preview canvas after 6 seconds
+            setTimeout(() => {
+              cameraCanvas.style.display = 'none';
+            }, 6000);
+          }
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Submission simulator
   mockSubmitBtn.addEventListener('click', async () => {
     const plate = mockPlateInput.value.trim();
     if (!plate) {
@@ -876,7 +1312,7 @@ function initMockLpr() {
     mockSubmitBtn.innerHTML = 'Okunuyor...';
 
     try {
-      const response = await fetch(`${API_BASE_URL}/vehicle/mock-lpr`, {
+      const response = await fetch(`${API_BASE_URL}/test/kamera-oku`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plate })
@@ -890,6 +1326,11 @@ function initMockLpr() {
 
       showToast('🟢 LPR Simülasyonu Başarılı', `${data.message}`, 'success');
       mockPlateInput.value = '';
+
+      // Auto refresh list locally immediately
+      if (currentUser && currentUser.role === 'Resident') {
+        loadActiveGuestVehicles();
+      }
 
     } catch (err) {
       showToast('🔴 LPR Simülasyon Hatası', err.message, 'danger');
@@ -923,3 +1364,76 @@ async function cancelGuestVehicle(id) {
   }
 }
 window.cancelGuestVehicle = cancelGuestVehicle;
+
+// ==========================================
+// PWA NATIVE WEB PUSH NOTIFICATION SYSTEM
+// ==========================================
+function urlB64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+async function setupPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.log("PWA Web Push is not supported by this browser.");
+    return;
+  }
+
+  try {
+    // 1. Request notification permission from user
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.log("Notification permission was denied.");
+      return;
+    }
+
+    // 2. Fetch VAPID public key from backend
+    const keyRes = await fetch(`${API_BASE_URL}/auth/vapid-public-key`);
+    const keyData = await keyRes.json();
+    const publicVapidKey = keyData.publicKey;
+
+    // 3. Register push subscription
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8Array(publicVapidKey)
+      });
+    }
+
+    // Convert raw keys to Base64 strings for .NET WebPush compatibility
+    const p256dh = btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('p256dh'))));
+    const auth = btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('auth'))));
+
+    // 4. Save subscription on the backend
+    await fetch(`${API_BASE_URL}/auth/subscribe-push`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentToken}`
+      },
+      body: JSON.stringify({
+        endpoint: subscription.endpoint,
+        p256dh: p256dh,
+        auth: auth
+      })
+    });
+
+    console.log("PWA Web Push notification registered successfully!");
+  } catch (err) {
+    console.warn("Could not register Web Push subscription:", err);
+  }
+}
+window.setupPushNotifications = setupPushNotifications;

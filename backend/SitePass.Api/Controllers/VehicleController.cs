@@ -6,6 +6,7 @@ using SitePass.Api.Hubs;
 using SitePass.Core.Entities;
 using SitePass.Core.Enums;
 using SitePass.Infrastructure.Data;
+using SitePass.Infrastructure.Services;
 using System;
 using System.Linq;
 using System.Security.Claims;
@@ -19,11 +20,13 @@ namespace SitePass.Api.Controllers
     public class VehicleController : ControllerBase
     {
         private readonly SitePassDbContext _context;
+        private readonly ExcelManager _excelManager;
         private readonly IHubContext<NotificationHub> _hubContext;
 
-        public VehicleController(SitePassDbContext context, IHubContext<NotificationHub> hubContext)
+        public VehicleController(SitePassDbContext context, ExcelManager excelManager, IHubContext<NotificationHub> hubContext)
         {
             _context = context;
+            _excelManager = excelManager;
             _hubContext = hubContext;
         }
 
@@ -60,34 +63,82 @@ namespace SitePass.Api.Controllers
                 return Unauthorized(new { Message = "Kullanıcı kimliği geçersiz." });
             }
 
-            // Check if the plate is already registered as an active vehicle
-            var existingActive = await _context.Vehicles
-                .FirstOrDefaultAsync(v => v.Plate == cleanPlate && v.IsActive);
+            // Check if the plate is already registered (active or inactive)
+            var existingVehicle = await _context.Vehicles
+                .FirstOrDefaultAsync(v => v.Plate == cleanPlate);
 
-            if (existingActive != null)
+            Vehicle guestVehicle;
+
+            if (existingVehicle != null)
             {
-                if (existingActive.IsGuest)
+                if (existingVehicle.IsActive)
                 {
-                    return BadRequest(new { Message = $"Bu plaka zaten aktif bir misafir olarak kayıtlı. Kalan Süre: {existingActive.ExpireDate}" });
+                    if (existingVehicle.IsGuest)
+                    {
+                        return BadRequest(new { Message = $"Bu plaka zaten aktif bir misafir olarak kayıtlı. Kalan Süre: {existingVehicle.ExpireDate}" });
+                    }
+                    else
+                    {
+                        return BadRequest(new { Message = "Bu plaka zaten kalıcı/sabit araç olarak kayıtlı." });
+                    }
                 }
-                else
+
+                // Reactivate existing inactive vehicle record
+                existingVehicle.IsActive = true;
+                existingVehicle.IsGuest = true;
+                existingVehicle.ResidentId = residentId;
+                existingVehicle.CreatedDate = DateTime.UtcNow;
+                existingVehicle.ExpireDate = DateTime.UtcNow.AddHours(12);
+
+                _context.Entry(existingVehicle).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+
+                guestVehicle = existingVehicle;
+            }
+            else
+            {
+                // Create new vehicle record
+                guestVehicle = new Vehicle
                 {
-                    return BadRequest(new { Message = "Bu plaka zaten kalıcı/sabit araç olarak kayıtlı." });
-                }
+                    Plate = cleanPlate,
+                    ResidentId = residentId,
+                    IsGuest = true,
+                    IsActive = true,
+                    CreatedDate = DateTime.UtcNow,
+                    ExpireDate = DateTime.UtcNow.AddHours(12) // 12 hours validity
+                };
+
+                _context.Vehicles.Add(guestVehicle);
+                await _context.SaveChangesAsync();
             }
 
-            var guestVehicle = new Vehicle
+            // Sitenin harici otopark Excel dosyasına senkronize et
+            try
             {
-                Plate = cleanPlate,
-                ResidentId = residentId,
-                IsGuest = true,
-                IsActive = true,
-                CreatedDate = DateTime.UtcNow,
-                ExpireDate = DateTime.UtcNow.AddHours(12) // 12 hours validity
-            };
+                var resident = await _context.Users.FindAsync(residentId);
+                var otoparkVehicle = new BeyazListe
+                {
+                    Plaka = cleanPlate,
+                    SahipAdSoyad = resident != null ? $"{resident.FirstName} {resident.LastName}" : "Bilinmeyen Sakin",
+                    BlokDaire = resident != null ? $"{resident.BlockNo}-{resident.ApartmentNo}" : "",
+                    IsGuest = true,
+                    IsActive = true,
+                    ExpireDate = DateTime.Now.AddHours(12) // Varsayılan 12 saat
+                };
 
-            _context.Vehicles.Add(guestVehicle);
-            await _context.SaveChangesAsync();
+                // TEST NOTU: Evde hızlı süre takip simülasyonu yapabilmek için süreyi saniye cinsinden ayarlayabilirsiniz.
+                // Testleri 30 saniyede patlatmak için aşağıdaki 2 satırın yorumunu açabilirsiniz:
+                // otoparkVehicle.ExpireDate = DateTime.Now.AddSeconds(30);
+                // guestVehicle.ExpireDate = DateTime.UtcNow.AddSeconds(30);
+                // _context.Entry(guestVehicle).State = EntityState.Modified;
+                // await _context.SaveChangesAsync();
+
+                await _excelManager.AddGuestVehicleAsync(otoparkVehicle);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Excel Beyaz Liste senkronizasyon hatası: {ex.Message}");
+            }
 
             return Ok(new
             {
@@ -216,6 +267,16 @@ namespace SitePass.Api.Controllers
 
             vehicle.IsActive = false;
             await _context.SaveChangesAsync();
+
+            // Sitenin harici otopark Excel kaydını da iptal et (IsActive = false yap)
+            try
+            {
+                await _excelManager.DeactivateVehicleAsync(vehicle.Plate);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Excel Beyaz Liste iptal senkronizasyon hatası: {ex.Message}");
+            }
 
             return Ok(new { Message = "Misafir araç izni başarıyla iptal edildi." });
         }

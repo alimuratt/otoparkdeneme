@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using SitePass.Api.Hubs;
 using SitePass.Core.Entities;
 using SitePass.Infrastructure.Data;
+using SitePass.Infrastructure.Services;
 using System;
 using System.Linq;
 using System.Security.Claims;
@@ -19,11 +20,16 @@ namespace SitePass.Api.Controllers
     {
         private readonly SitePassDbContext _context;
         private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly PushNotificationService _pushService;
 
-        public DeliveryController(SitePassDbContext context, IHubContext<NotificationHub> hubContext)
+        public DeliveryController(
+            SitePassDbContext context, 
+            IHubContext<NotificationHub> hubContext,
+            PushNotificationService pushService)
         {
             _context = context;
             _hubContext = hubContext;
+            _pushService = pushService;
         }
 
         public class CreateDeliveryRequest
@@ -133,6 +139,20 @@ namespace SitePass.Api.Controllers
                 Timestamp = DateTime.UtcNow,
                 DeliveryType = delivery.DeliveryType
             });
+
+            // Send native push notification for background/closed app delivery
+            try
+            {
+                await _pushService.SendNotificationToUserAsync(
+                    delivery.ResidentId,
+                    title,
+                    message
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WebPush] Failed to trigger background delivery push: {ex.Message}");
+            }
 
             return Ok(new { Message = "Teslimat siteye giriş olarak onaylandı, sakine bildirim gönderildi." });
         }
