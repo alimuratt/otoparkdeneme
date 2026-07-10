@@ -15,6 +15,7 @@ namespace SitePass.Infrastructure.Data
         public DbSet<Vehicle> Vehicles => Set<Vehicle>();
         public DbSet<Delivery> Deliveries => Set<Delivery>();
         public DbSet<Complaint> Complaints => Set<Complaint>();
+        public DbSet<SavedGuest> SavedGuests => Set<SavedGuest>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -98,6 +99,23 @@ namespace SitePass.Infrastructure.Data
                 entity.HasOne(c => c.Resident)
                     .WithMany()
                     .HasForeignKey(c => c.ResidentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // SavedGuest configuration
+            modelBuilder.Entity<SavedGuest>(entity =>
+            {
+                entity.ToTable("SavedGuests");
+
+                entity.HasKey(sg => sg.Id);
+                entity.Property(sg => sg.Plate).IsRequired().HasMaxLength(20);
+                entity.Property(sg => sg.FirstName).IsRequired().HasMaxLength(50);
+                entity.Property(sg => sg.LastName).IsRequired().HasMaxLength(50);
+
+                // Relationship: User (Resident) -> SavedGuests
+                entity.HasOne(sg => sg.Resident)
+                    .WithMany()
+                    .HasForeignKey(sg => sg.ResidentId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }

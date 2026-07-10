@@ -179,9 +179,31 @@
               <label for="guestPlate">Araç Plakası</label>
               <input type="text" id="guestPlate" placeholder="34ABC123" required maxlength="12">
             </div>
-            <button type="submit" class="btn btn-success">
-              <span>🚗 Misafir Tanımla</span>
-            </button>
+            
+            <div style="display: flex; gap: 12px; margin-top: 16px;">
+              <button type="submit" class="btn btn-success" style="flex: 1; margin: 0;">
+                <span>🚗 Misafir Tanımla</span>
+              </button>
+              <button type="button" class="btn btn-secondary" id="btn-show-save-guest" style="flex: 1; margin: 0;">
+                <span>💾 Plakayı Kaydet</span>
+              </button>
+            </div>
+
+            <!-- Saved Guest Form Card inside Collapsible -->
+            <div id="save-guest-collapsible" style="display: none; margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px;">
+              <h3 style="font-size: 1rem; margin-bottom: 12px; font-weight: 700;">Yeni Kayıtlı Plaka Ekle</h3>
+              <div class="form-group">
+                <label for="saveGuestFirstName">Araç Sahibinin Adı</label>
+                <input type="text" id="saveGuestFirstName" placeholder="Adı">
+              </div>
+              <div class="form-group">
+                <label for="saveGuestLastName">Araç Sahibinin Soyadı</label>
+                <input type="text" id="saveGuestLastName" placeholder="Soyadı">
+              </div>
+              <button type="button" class="btn btn-primary" id="btn-save-guest-submit" style="width: 100%; min-height: 44px; margin-top: 8px;">
+                <span>💾 Listeye Kaydet</span>
+              </button>
+            </div>
           </form>
         </div>
 
@@ -193,6 +215,19 @@
             <div class="alert alert-info" id="no-active-guests">
               <span class="alert-icon">ℹ️</span>
               <div>Şu an aktif tanımlı misafir aracınız bulunmamaktadır.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kayıtlı Misafir Plakaları -->
+        <div class="card">
+          <h2>Kayıtlı Misafir Plakalarınız</h2>
+          <p style="color: var(--text-muted); margin-bottom: 16px;">Hızlıca plaka seçip misafir tanımlamak için aşağıdaki listeden aktif edebilirsiniz.</p>
+          <div id="saved-guests-list" class="list-container">
+            <!-- Dynamically populated saved guests -->
+            <div class="alert alert-info" id="no-saved-guests">
+              <span class="alert-icon">ℹ️</span>
+              <div>Henüz kayıtlı bir misafir plakanız bulunmamaktadır.</div>
             </div>
           </div>
         </div>

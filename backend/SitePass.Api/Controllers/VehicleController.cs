@@ -280,5 +280,109 @@ namespace SitePass.Api.Controllers
 
             return Ok(new { Message = "Misafir araç izni başarıyla iptal edildi." });
         }
+
+        // ==========================================
+        // SAVED GUESTS ENDPOINTS
+        // ==========================================
+        public class AddSavedGuestRequest
+        {
+            public string Plate { get; set; } = string.Empty;
+            public string FirstName { get; set; } = string.Empty;
+            public string LastName { get; set; } = string.Empty;
+        }
+
+        [HttpPost("saved-guest")]
+        [Authorize(Roles = "Resident")]
+        public async Task<IActionResult> AddSavedGuest([FromBody] AddSavedGuestRequest request)
+        {
+            var cleanPlate = NormalizePlate(request.Plate);
+            if (string.IsNullOrEmpty(cleanPlate))
+            {
+                return BadRequest(new { Message = "Plaka boş olamaz." });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
+            {
+                return BadRequest(new { Message = "İsim ve soyisim alanları boş olamaz." });
+            }
+
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                return Unauthorized(new { Message = "Geçersiz oturum." });
+            }
+
+            var exists = await _context.SavedGuests.AnyAsync(sg => sg.ResidentId == userId && sg.Plate == cleanPlate);
+            if (exists)
+            {
+                return BadRequest(new { Message = "Bu plaka zaten kayıtlı listenizde bulunmaktadır." });
+            }
+
+            var savedGuest = new SavedGuest
+            {
+                Plate = cleanPlate,
+                FirstName = request.FirstName.Trim(),
+                LastName = request.LastName.Trim(),
+                ResidentId = userId
+            };
+
+            _context.SavedGuests.Add(savedGuest);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Success = true, Message = "Plaka başarıyla kaydedildi." });
+        }
+
+        [HttpGet("saved-guest/my-list")]
+        [Authorize(Roles = "Resident")]
+        public async Task<IActionResult> GetMySavedGuests()
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                return Unauthorized(new { Message = "Geçersiz oturum." });
+            }
+
+            var list = await _context.SavedGuests
+                .Where(sg => sg.ResidentId == userId)
+                .OrderBy(sg => sg.FirstName)
+                .ThenBy(sg => sg.LastName)
+                .Select(sg => new
+                {
+                    sg.Id,
+                    sg.Plate,
+                    sg.FirstName,
+                    sg.LastName
+                })
+                .ToListAsync();
+
+            return Ok(list);
+        }
+
+        [HttpDelete("saved-guest/{id}")]
+        [Authorize(Roles = "Resident")]
+        public async Task<IActionResult> DeleteSavedGuest(int id)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                return Unauthorized(new { Message = "Geçersiz oturum." });
+            }
+
+            var savedGuest = await _context.SavedGuests.FindAsync(id);
+            if (savedGuest == null)
+            {
+                return NotFound(new { Message = "Kayıtlı plaka bulunamadı." });
+            }
+
+            if (savedGuest.ResidentId != userId)
+            {
+                return Forbid();
+            }
+
+            _context.SavedGuests.Remove(savedGuest);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Success = true, Message = "Kayıtlı plaka başarıyla silindi." });
+        }
     }
 }

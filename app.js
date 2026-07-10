@@ -403,6 +403,75 @@ function initResidentPanel() {
     btnMenuComplaint.addEventListener('click', () => selectResidentSubMenu('complaint'));
   }
 
+  // Saved Guest Collapsible Toggle & Submit Handlers
+  const btnShowSaveGuest = document.getElementById('btn-show-save-guest');
+  const saveGuestCollapsible = document.getElementById('save-guest-collapsible');
+  const btnSaveGuestSubmit = document.getElementById('btn-save-guest-submit');
+  const saveGuestFirstName = document.getElementById('saveGuestFirstName');
+  const saveGuestLastName = document.getElementById('saveGuestLastName');
+  const guestPlateInput = document.getElementById('guestPlate');
+
+  if (btnShowSaveGuest && saveGuestCollapsible) {
+    btnShowSaveGuest.addEventListener('click', () => {
+      const isHidden = saveGuestCollapsible.style.display === 'none';
+      saveGuestCollapsible.style.display = isHidden ? 'block' : 'none';
+      btnShowSaveGuest.innerHTML = isHidden ? '<span>❌ Vazgeç</span>' : '<span>💾 Plakayı Kaydet</span>';
+    });
+  }
+
+  if (btnSaveGuestSubmit && guestPlateInput && saveGuestFirstName && saveGuestLastName) {
+    btnSaveGuestSubmit.addEventListener('click', async () => {
+      const plate = guestPlateInput.value.trim();
+      const firstName = saveGuestFirstName.value.trim();
+      const lastName = saveGuestLastName.value.trim();
+
+      if (!plate) {
+        showToast('⚠️ Eksik Bilgi', 'Lütfen önce araç plakasını girin.', 'warning');
+        return;
+      }
+      if (!firstName || !lastName) {
+        showToast('⚠️ Eksik Bilgi', 'Lütfen ad ve soyad alanlarını doldurun.', 'warning');
+        return;
+      }
+
+      btnSaveGuestSubmit.disabled = true;
+      btnSaveGuestSubmit.innerHTML = 'Kaydediliyor...';
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/vehicle/saved-guest`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: JSON.stringify({ plate, firstName, lastName })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Plaka kaydedilemedi.');
+        }
+
+        showToast('✅ Başarıyla Kaydedildi', `${firstName} ${lastName} misafir listenize eklendi.`, 'success');
+        
+        // Reset form and collapse
+        saveGuestFirstName.value = '';
+        saveGuestLastName.value = '';
+        saveGuestCollapsible.style.display = 'none';
+        btnShowSaveGuest.innerHTML = '<span>💾 Plakayı Kaydet</span>';
+
+        // Reload saved guests list
+        loadSavedGuests();
+
+      } catch (err) {
+        showToast('❌ Hata', err.message, 'danger');
+      } finally {
+        btnSaveGuestSubmit.disabled = false;
+        btnSaveGuestSubmit.innerHTML = 'Listeye Kaydet';
+      }
+    });
+  }
+
   // Live Word Counter for Complaints Text Area (300 words limit)
   const complaintText = document.getElementById('complaintText');
   const complaintWordCounter = document.getElementById('complaint-word-counter');
@@ -580,6 +649,7 @@ function loadResidentData() {
   loadActiveGuestVehicles();
   loadActiveDeliveries();
   loadResidentComplaints();
+  loadSavedGuests();
 }
 
 async function loadActiveDeliveries() {
@@ -1865,4 +1935,130 @@ function escapeHtml(text) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+// Load Resident's saved guests
+async function loadSavedGuests() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/vehicle/saved-guest/my-list`, {
+      headers: { 'Authorization': `Bearer ${currentToken}` }
+    });
+
+    if (!response.ok) throw new Error('Kayıtlı plakalarınız yüklenemedi.');
+
+    const savedList = await response.json();
+    const container = document.getElementById('saved-guests-list');
+
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (savedList.length === 0) {
+      container.innerHTML = `
+        <div class="alert alert-info" id="no-saved-guests">
+          <span class="alert-icon">ℹ️</span>
+          <div>Henüz kayıtlı bir misafir plakanız bulunmamaktadır.</div>
+        </div>
+      `;
+      return;
+    }
+
+    savedList.forEach(sg => {
+      const card = document.createElement('div');
+      card.className = 'list-item';
+      card.style.justifyContent = 'space-between';
+      card.style.alignItems = 'center';
+      card.style.padding = '12px 16px';
+      
+      card.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">
+            👤 ${escapeHtml(sg.firstName)} ${escapeHtml(sg.lastName)}
+          </span>
+          <span class="plate-badge" style="width: fit-content; font-size: 0.85rem; margin-top: 2px;">
+            ${escapeHtml(sg.plate)}
+          </span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-success btn-sm btn-activate-saved-guest" data-plate="${escapeHtml(sg.plate)}" style="margin: 0; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: 4px; min-height: unset;">
+            🟢 Aktif Et
+          </button>
+          <button class="btn btn-danger btn-sm btn-delete-saved-guest" data-id="${sg.id}" style="margin: 0; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: 4px; min-height: unset;">
+            🗑️ Sil
+          </button>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+    // Event listeners
+    container.querySelectorAll('.btn-activate-saved-guest').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const plate = btn.getAttribute('data-plate');
+        await activateSavedGuest(plate);
+      });
+    });
+
+    container.querySelectorAll('.btn-delete-saved-guest').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (confirm('Bu kayıtlı plakayı ve araç sahibi bilgisini silmek istediğinize emin misiniz?')) {
+          await deleteSavedGuest(id);
+        }
+      });
+    });
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function activateSavedGuest(plate) {
+  try {
+    const input = document.getElementById('guestPlate');
+    if (input) input.value = plate;
+
+    const response = await fetch(`${API_BASE_URL}/vehicle/guest`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentToken}`
+      },
+      body: JSON.stringify({ plate })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Misafir tanımlanamadı.');
+    }
+
+    showToast('🟢 Misafir Aktif Edildi', `${plate} plakalı misafir araca 12 saatlik giriş izni tanımlandı.`, 'success');
+    
+    // Refresh lists
+    loadActiveGuestVehicles();
+
+  } catch (err) {
+    showToast('❌ Hata', err.message, 'danger');
+  }
+}
+
+async function deleteSavedGuest(id) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/vehicle/saved-guest/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${currentToken}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Kayıt silinemedi.');
+    }
+
+    showToast('🗑️ Silindi', 'Kayıtlı misafir plaka bilgisi başarıyla silindi.', 'success');
+    loadSavedGuests();
+
+  } catch (err) {
+    showToast('❌ Hata', err.message, 'danger');
+  }
 }
