@@ -670,8 +670,8 @@ function startCountdownTicker() {
         secondsLeft--;
         timer.setAttribute('data-seconds', secondsLeft);
         
-        const mins = Math.floor(secondsLeft / 60);
-        const secs = secondsLeft % 60;
+        const hours = Math.floor(secondsLeft / 3600);
+        const mins = Math.floor((secondsLeft % 3600) / 60);
         
         // Hide standard label to display single beautiful string
         const label = timer.previousElementSibling;
@@ -679,8 +679,12 @@ function startCountdownTicker() {
           label.style.display = 'none';
         }
         
-        // "Bariyer İzninin Bitmesine: XX dk YY sn kaldı" format
-        timer.innerText = `Bariyer İzninin Bitmesine: ${mins} dk ${secs} sn kaldı`;
+        // "Bariyer İzninin Bitmesine: XX saat YY dk kaldı" format
+        if (hours > 0) {
+          timer.innerText = `Bariyer İzninin Bitmesine: ${hours} saat ${mins} dk kaldı`;
+        } else {
+          timer.innerText = `Bariyer İzninin Bitmesine: ${mins} dk kaldı`;
+        }
       }
     });
     
