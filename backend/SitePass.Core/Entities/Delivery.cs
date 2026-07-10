@@ -16,6 +16,9 @@ namespace SitePass.Core.Entities
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
         public DateTime ExpireDate { get; set; } = DateTime.UtcNow.AddDays(1); // 1 day after
         
+        // Whether security should receive this delivery
+        public bool SecurityShouldReceive { get; set; } = false;
+        
         // Whether security processed it
         public bool IsProcessed { get; set; } = false;
     }

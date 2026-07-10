@@ -35,6 +35,7 @@ namespace SitePass.Api.Controllers
         public class CreateDeliveryRequest
         {
             public string DeliveryType { get; set; } = "Kargo"; // Default to Kargo
+            public bool SecurityShouldReceive { get; set; } = false;
         }
 
         [HttpPost("expected")]
@@ -54,7 +55,8 @@ namespace SitePass.Api.Controllers
                 IsActive = true,
                 CreatedDate = DateTime.UtcNow,
                 ExpireDate = DateTime.UtcNow.AddDays(1), // Valid for 24 hours
-                IsProcessed = false
+                IsProcessed = false,
+                SecurityShouldReceive = request.SecurityShouldReceive
             };
 
             _context.Deliveries.Add(delivery);
@@ -70,7 +72,8 @@ namespace SitePass.Api.Controllers
                     delivery.IsActive,
                     delivery.CreatedDate,
                     delivery.ExpireDate,
-                    delivery.IsProcessed
+                    delivery.IsProcessed,
+                    delivery.SecurityShouldReceive
                 }
             });
         }
@@ -92,6 +95,7 @@ namespace SitePass.Api.Controllers
                     d.DeliveryType,
                     d.CreatedDate,
                     d.ExpireDate,
+                    d.SecurityShouldReceive,
                     ResidentName = $"{d.Resident.FirstName} {d.Resident.LastName}",
                     ResidentPhone = d.Resident.PhoneNumber,
                     BlockNo = d.Resident.BlockNo ?? "",
@@ -131,6 +135,12 @@ namespace SitePass.Api.Controllers
             var residentIdString = delivery.ResidentId.ToString();
             string title = "📦 Teslimatınız Ulaştı";
             string message = $"Beklediğiniz '{delivery.DeliveryType}' teslimatınız siteye giriş yapmış / güvenliğe ulaşmıştır.";
+
+            if (delivery.SecurityShouldReceive)
+            {
+                title = "📦 Siparişiniz Güvenlikte";
+                message = $"Beklediğiniz '{delivery.DeliveryType}' teslimatınız / siparişiniz güvenlik tarafından teslim alınmıştır.";
+            }
 
             await _hubContext.Clients.User(residentIdString).SendAsync("ReceiveNotification", new
             {
@@ -178,7 +188,8 @@ namespace SitePass.Api.Controllers
                     d.Id,
                     d.DeliveryType,
                     d.CreatedDate,
-                    d.ExpireDate
+                    d.ExpireDate,
+                    d.SecurityShouldReceive
                 })
                 .ToListAsync();
 

@@ -78,6 +78,7 @@ namespace SitePass.Infrastructure.Data
                 entity.Property(d => d.CreatedDate).IsRequired();
                 entity.Property(d => d.ExpireDate).IsRequired();
                 entity.Property(d => d.IsProcessed).IsRequired();
+                entity.Property(d => d.SecurityShouldReceive).IsRequired();
 
                 // Relationship: User (Resident) -> Deliveries
                 entity.HasOne(d => d.Resident)

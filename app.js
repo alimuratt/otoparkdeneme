@@ -588,10 +588,12 @@ function initResidentPanel() {
     }
   });
 
-  // Expected Delivery Button click
+  // Expected Delivery Button click handlers
   const deliveryBtn = document.getElementById('btn-expect-delivery');
-  deliveryBtn.addEventListener('click', async () => {
-    deliveryBtn.disabled = true;
+  const deliverySecurityBtn = document.getElementById('btn-expect-delivery-security');
+
+  async function requestExpectedDelivery(btn, securityShouldReceive) {
+    btn.disabled = true;
     
     try {
       const response = await fetch(`${API_BASE_URL}/delivery/expected`, {
@@ -600,7 +602,10 @@ function initResidentPanel() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${currentToken}`
         },
-        body: JSON.stringify({ deliveryType: 'Kargo/Sipariş' })
+        body: JSON.stringify({ 
+          deliveryType: 'Kargo/Sipariş',
+          securityShouldReceive: securityShouldReceive
+        })
       });
       
       const data = await response.json();
@@ -609,18 +614,28 @@ function initResidentPanel() {
         throw new Error(data.message || 'Kayıt başarısız.');
       }
       
-      showToast('📦 Talep İletildi', 'Güvenliğe beklenen kargo kaydı düştü. Giriş yaptığında size bildirilecektir.', 'success');
+      const msg = securityShouldReceive 
+        ? 'Güvenliğe beklenen kargo kaydı (Güvenlik Teslim Alacak) olarak düştü. Teslim alındığında size bildirilecektir.'
+        : 'Güvenliğe beklenen kargo kaydı düştü. Giriş yaptığında size bildirilecektir.';
+
+      showToast('📦 Talep İletildi', msg, 'success');
       loadActiveDeliveries();
       
     } catch (err) {
       showToast('⚠️ İstek Hatası', err.message, 'warning');
     } finally {
-      // Small cooldown to prevent double taps
       setTimeout(() => {
-        deliveryBtn.disabled = false;
+        btn.disabled = false;
       }, 3000);
     }
-  });
+  }
+
+  if (deliveryBtn) {
+    deliveryBtn.addEventListener('click', () => requestExpectedDelivery(deliveryBtn, false));
+  }
+  if (deliverySecurityBtn) {
+    deliverySecurityBtn.addEventListener('click', () => requestExpectedDelivery(deliverySecurityBtn, true));
+  }
 }
 
 function loadResidentData() {
@@ -685,10 +700,11 @@ async function loadActiveDeliveries() {
       item.className = 'list-item';
       const createdTime = new Date(delivery.createdDate).toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'});
       const createdDateStr = new Date(delivery.createdDate).toLocaleDateString('tr-TR');
+      const labelText = delivery.securityShouldReceive ? `${delivery.deliveryType} (Güvenlik Teslim Alacak)` : delivery.deliveryType;
       
       item.innerHTML = `
         <div class="list-item-details">
-          <div style="font-weight: 600; font-size: 1.05rem;">📦 ${delivery.deliveryType}</div>
+          <div style="font-weight: 600; font-size: 1.05rem;">📦 ${labelText}</div>
           <div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">
             Beklenen Tarih: ${createdDateStr} - ${createdTime}
           </div>
@@ -879,9 +895,13 @@ async function loadSecurityDeliveries() {
     deliveries.forEach(delivery => {
       const card = document.createElement('div');
       card.className = 'delivery-card';
+      const labelText = delivery.securityShouldReceive ? `${delivery.deliveryType} (Güvenlik Teslim Alacak)` : delivery.deliveryType;
+      const buttonText = delivery.securityShouldReceive ? '📦 TESLİM ALINDI' : 'ONAYLA (SİTEYE AL)';
+      const badgeStyle = delivery.securityShouldReceive ? 'background-color: var(--success);' : '';
+
       card.innerHTML = `
         <div class="delivery-info-header">
-          <span class="delivery-badge">${delivery.deliveryType}</span>
+          <span class="delivery-badge" style="${badgeStyle}">${labelText}</span>
           <span style="font-size:0.9rem; color:var(--text-muted);">Eklenme: ${new Date(delivery.createdDate).toLocaleTimeString('tr-TR')}</span>
         </div>
         
@@ -903,7 +923,7 @@ async function loadSecurityDeliveries() {
         </div>
         
         <button class="btn btn-success btn-approve-delivery" data-id="${delivery.id}">
-          <span>ONAYLA (SİTEYE AL)</span>
+          <span>${buttonText}</span>
         </button>
       `;
       container.appendChild(card);

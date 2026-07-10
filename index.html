@@ -148,11 +148,17 @@
         <!-- Function B: Mega Delivery Button (Placed first for high accessibility/elderly priority) -->
         <div class="card" style="text-align: center;">
           <h2>Kargo & Sipariş İşlemleri</h2>
-          <p style="color: var(--text-muted); margin-bottom: 16px;">Gelmeyi bekleyen bir teslimatınız varsa alttaki butona basın.</p>
-          <button class="btn btn-mega" id="btn-expect-delivery">
-            <span class="btn-icon">📦</span>
-            <span>Kargo / Sipariş Bekliyorum</span>
-          </button>
+          <p style="color: var(--text-muted); margin-bottom: 16px;">Gelmeyi bekleyen bir teslimatınız varsa aşağıdaki butonlara basın.</p>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <button class="btn btn-mega" id="btn-expect-delivery" style="margin: 0; min-height: 60px;">
+              <span class="btn-icon">📦</span>
+              <span>Kargo / Sipariş Bekliyorum</span>
+            </button>
+            <button class="btn btn-mega" id="btn-expect-delivery-security" style="margin: 0; min-height: 60px; background-color: var(--success); border-color: var(--success);">
+              <span class="btn-icon">👮</span>
+              <span>Kargomu Güvenlik Teslim Alsın</span>
+            </button>
+          </div>
         </div>
 
         <!-- Active Expected Deliveries List -->
