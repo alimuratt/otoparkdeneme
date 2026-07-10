@@ -523,6 +523,35 @@
     </div>
   </div>
 
+  <!-- Resident Complaint Detail Modal -->
+  <div id="resident-complaint-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 500px; text-align: left;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 16px;">
+        <h2 style="margin: 0; font-size: 1.3rem;">Şikayet Başvurunuz</h2>
+        <button class="btn-icon-only" id="btn-close-res-complaint-modal" style="font-size: 1.2rem; cursor: pointer; border: none; background: transparent; color: var(--text-muted);">✕</button>
+      </div>
+      
+      <div style="background-color: var(--bg-input); padding: 16px; border-radius: var(--border-radius-md); font-size: 0.95rem; line-height: 1.5; color: var(--text-main); margin-bottom: 16px; white-space: pre-wrap; word-break: break-word;" id="modal-res-complaint-text">
+        Şikayet metni burada görünecek...
+      </div>
+
+      <div class="info-row" style="margin-bottom: 16px; font-size: 0.85rem; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px;">
+        <span>Başvuru Tarihi:</span>
+        <span id="modal-res-complaint-date" style="font-weight: 600; color: var(--text-main);">...</span>
+      </div>
+
+      <!-- Reply Box inside Modal -->
+      <div id="modal-res-reply-box" style="display: none; background-color: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); padding: 12px; border-radius: var(--border-radius-md); margin-bottom: 16px;">
+        <div style="font-weight: 700; color: var(--success); font-size: 0.9rem; margin-bottom: 4px;">💬 Yönetici Yanıtı:</div>
+        <div style="font-size: 0.9rem; color: var(--text-main); white-space: pre-wrap; word-break: break-word;" id="modal-res-reply-text">...</div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" id="btn-close-res-complaint-modal-ok" style="margin: 0; min-height: 40px; padding: 0 20px;">Kapat</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SignalR Library (CDN) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
   

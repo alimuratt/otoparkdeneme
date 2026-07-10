@@ -1713,6 +1713,43 @@ function initAdminComplaintModal() {
       }
     });
   }
+
+  // Resident Complaint Detail Modal Bindings
+  const resModal = document.getElementById('resident-complaint-modal');
+  const resBtnClose = document.getElementById('btn-close-res-complaint-modal');
+  const resBtnCloseOk = document.getElementById('btn-close-res-complaint-modal-ok');
+  
+  if (resModal) {
+    const closeResModal = () => { resModal.style.display = 'none'; };
+    if (resBtnClose) resBtnClose.addEventListener('click', closeResModal);
+    if (resBtnCloseOk) resBtnCloseOk.addEventListener('click', closeResModal);
+    
+    // Bind resident's "Şikayeti Gör" click trigger by delegating to `#resident-complaints-list`
+    const resList = document.getElementById('resident-complaints-list');
+    if (resList) {
+      resList.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-view-resident-complaint');
+        if (!btn) return;
+        
+        const text = decodeURIComponent(btn.getAttribute('data-text') || '');
+        const date = btn.getAttribute('data-date') || '';
+        const reply = decodeURIComponent(btn.getAttribute('data-reply') || '');
+        
+        document.getElementById('modal-res-complaint-text').innerText = text;
+        document.getElementById('modal-res-complaint-date').innerText = date;
+        
+        const replyBox = document.getElementById('modal-res-reply-box');
+        if (reply) {
+          document.getElementById('modal-res-reply-text').innerText = reply;
+          replyBox.style.display = 'block';
+        } else {
+          replyBox.style.display = 'none';
+        }
+        
+        resModal.style.display = 'flex';
+      });
+    }
+  }
 }
 
 // Load Resident's own complaints
@@ -1745,55 +1782,53 @@ async function loadResidentComplaints() {
       card.className = 'list-item';
       card.style.flexDirection = 'column';
       card.style.alignItems = 'stretch';
-      card.style.gap = '12px';
-      card.style.padding = '16px';
+      card.style.gap = '8px';
+      card.style.padding = '14px 16px';
       
       const dateStr = new Date(c.createdDate).toLocaleDateString('tr-TR', {
         day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
       });
 
-      let replyHtml = '';
+      // Short preview of complaint text (e.g. first 60 characters)
+      const previewText = c.text.length > 60 ? c.text.substring(0, 60) + '...' : c.text;
+
+      let statusBadge = '';
       if (c.replyText) {
-        const replyDateStr = new Date(c.replyDate).toLocaleDateString('tr-TR', {
-          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
-        replyHtml = `
-          <div style="background-color: rgba(16, 185, 129, 0.08); border: 1px solid var(--success); border-radius: var(--border-radius-md); padding: 12px; margin-top: 8px;">
-            <div style="font-weight: 700; color: var(--success); font-size: 0.85rem; margin-bottom: 4px;">💬 Yönetici Yanıtı (${replyDateStr}):</div>
-            <div style="font-size: 0.9rem; color: var(--text-main); line-height: 1.4; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.replyText)}</div>
-          </div>
-        `;
+        statusBadge = '<span class="delivery-badge" style="background-color: var(--success); font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: 600; display: inline-block;">Cevaplandı</span>';
       } else {
-        replyHtml = `
-          <div style="font-size: 0.8rem; color: var(--warning); font-style: italic; margin-top: 4px;">
-            ⏳ Henüz yanıtlanmadı (Beklemede)
-          </div>
-        `;
+        statusBadge = '<span class="delivery-badge" style="background-color: var(--warning); font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: 600; display: inline-block;">Beklemede</span>';
       }
 
       card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
-          <div style="flex: 1;">
-            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Başvuru Tarihi: ${dateStr}</div>
-            <div style="font-size: 0.95rem; font-weight: 500; color: var(--text-main); white-space: pre-wrap; word-break: break-word; line-height: 1.4;">${escapeHtml(c.text)}</div>
-          </div>
-          <button class="btn btn-danger btn-sm btn-withdraw-complaint" data-id="${c.id}" style="margin: 0; padding: 6px 12px; font-size: 0.8rem; min-height: unset; flex-shrink: 0;">
-            Geri Çek
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px; margin-bottom: 4px;">
+          <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">📅 ${dateStr}</span>
+          ${statusBadge}
+        </div>
+        
+        <div style="font-size: 0.9rem; color: var(--text-main); margin-bottom: 6px; line-height: 1.4; word-break: break-word;">
+          ${escapeHtml(previewText)}
+        </div>
+
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+          <button class="btn btn-primary btn-sm btn-view-resident-complaint" data-text="${encodeURIComponent(c.text)}" data-date="${dateStr}" data-reply="${encodeURIComponent(c.replyText || '')}" style="margin: 0; min-height: unset; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: 4px;">
+            🔍 Detayı Gör
+          </button>
+          <button class="btn btn-danger btn-sm btn-withdraw-complaint" data-id="${c.id}" style="margin: 0; min-height: unset; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: 4px;">
+            🗑️ Geri Çek
           </button>
         </div>
-        ${replyHtml}
       `;
       container.appendChild(card);
     });
 
-    // Bind withdraw actions
-    container.querySelectorAll('.btn-withdraw-complaint').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.getAttribute('data-id');
-        if (confirm('Bu şikayet başvurusunu tamamen iptal etmek ve geri çekmek istediğinize emin misiniz?')) {
-          await withdrawComplaint(id);
-        }
-      });
+    // Bind withdraw actions (with event delegation since we have container)
+    container.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.btn-withdraw-complaint');
+      if (!btn) return;
+      const id = btn.getAttribute('data-id');
+      if (confirm('Bu şikayet başvurusunu tamamen iptal etmek ve geri çekmek istediğinize emin misiniz?')) {
+        await withdrawComplaint(id);
+      }
     });
 
   } catch (err) {
