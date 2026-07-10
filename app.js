@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initResidentPanel();
   initAdminPanel();
   initMockLpr();
+  initAdminComplaintModal();
 
   // Push Notification Enable Button Click (Banner)
   const btnEnablePush = document.getElementById('btn-enable-push');
@@ -456,6 +457,7 @@ function initResidentPanel() {
         showToast('✅ Şikayet İletildi', 'Şikayetiniz yöneticiye başarıyla ulaştırıldı.', 'success');
         complaintForm.reset();
         complaintWordCounter.innerText = '0 / 300 kelime';
+        loadResidentComplaints();
         selectResidentSubMenu('complaint');
 
       } catch (err) {
@@ -577,6 +579,7 @@ function loadResidentData() {
 
   loadActiveGuestVehicles();
   loadActiveDeliveries();
+  loadResidentComplaints();
 }
 
 async function loadActiveDeliveries() {
@@ -1565,6 +1568,7 @@ async function setupPushNotifications() {
 window.setupPushNotifications = setupPushNotifications;
 
 // Load all complaints for the admin
+// Load all complaints for the admin
 async function loadAdminComplaints() {
   try {
     const response = await fetch(`${API_BASE_URL}/complaint/admin-list`, {
@@ -1596,18 +1600,226 @@ async function loadAdminComplaints() {
         day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
       });
       const location = `${c.blockNo} Blok - Daire ${c.apartmentNo}`;
+      const isReplied = c.replyText ? '<span class="delivery-badge" style="background-color: var(--success); font-size: 0.75rem;">Cevaplandı</span>' : '<span class="delivery-badge" style="background-color: var(--warning); font-size: 0.75rem;">Bekliyor</span>';
       
       row.innerHTML = `
         <td>${dateStr}</td>
         <td><strong>${location}</strong></td>
-        <td>${c.residentName}</td>
-        <td style="white-space: pre-wrap; max-width: 400px; text-align: left; word-break: break-word;">${escapeHtml(c.text)}</td>
+        <td>${c.residentName} ${isReplied}</td>
+        <td>
+          <button class="btn btn-primary btn-sm btn-view-complaint" data-id="${c.id}" data-text="${encodeURIComponent(c.text)}" data-sender="${escapeHtml(c.residentName)} (${location})" data-date="${dateStr}" data-reply="${encodeURIComponent(c.replyText || '')}" data-replydate="${c.replyDate ? new Date(c.replyDate).toLocaleDateString('tr-TR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : ''}" style="margin: 0; min-height: unset; padding: 6px 12px; font-size: 0.85rem;">
+            Şikayeti Gör
+          </button>
+        </td>
       `;
       tableBody.appendChild(row);
     });
     
   } catch (err) {
     console.error(err);
+  }
+}
+
+function initAdminComplaintModal() {
+  const modal = document.getElementById('admin-complaint-modal');
+  const btnClose = document.getElementById('btn-close-complaint-modal');
+  const btnCancel = document.getElementById('btn-cancel-reply-modal');
+  const form = document.getElementById('admin-reply-form');
+  const replyText = document.getElementById('replyText');
+  const complaintIdInput = document.getElementById('reply-complaint-id');
+  const tableBody = document.getElementById('admin-complaints-table-body');
+  
+  if (!modal) return;
+
+  // Use event delegation on tableBody to catch clicks on "Şikayeti Gör"
+  if (tableBody) {
+    tableBody.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-view-complaint');
+      if (!btn) return;
+
+      const id = btn.getAttribute('data-id');
+      const text = decodeURIComponent(btn.getAttribute('data-text') || '');
+      const sender = btn.getAttribute('data-sender') || '';
+      const date = btn.getAttribute('data-date') || '';
+      const reply = decodeURIComponent(btn.getAttribute('data-reply') || '');
+      const replydate = btn.getAttribute('data-replydate') || '';
+
+      // Fill modal elements
+      document.getElementById('modal-complaint-text').innerText = text;
+      document.getElementById('modal-complaint-sender').innerText = sender;
+      document.getElementById('modal-complaint-date').innerText = date;
+      complaintIdInput.value = id;
+      replyText.value = '';
+
+      // Handle existing reply box
+      const replyBox = document.getElementById('modal-existing-reply-box');
+      if (reply) {
+        document.getElementById('modal-existing-reply-text').innerText = reply;
+        document.getElementById('modal-existing-reply-date').innerText = replydate;
+        replyBox.style.display = 'block';
+      } else {
+        replyBox.style.display = 'none';
+      }
+
+      // Show modal
+      modal.style.display = 'flex';
+    });
+  }
+
+  // Close actions
+  const closeModal = () => {
+    modal.style.display = 'none';
+  };
+
+  if (btnClose) btnClose.addEventListener('click', closeModal);
+  if (btnCancel) btnCancel.addEventListener('click', closeModal);
+
+  // Form submission for reply
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = complaintIdInput.value;
+      const text = replyText.value.trim();
+
+      const submitBtn = document.getElementById('btn-submit-reply');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'Gönderiliyor...';
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/complaint/reply/${id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: JSON.stringify({ text })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Cevap gönderilemedi.');
+        }
+
+        showToast('✅ Cevap İletildi', 'Cevabınız sakine başarıyla ulaştırıldı.', 'success');
+        closeModal();
+        loadAdminComplaints(); // refresh table
+
+      } catch (err) {
+        showToast('❌ Hata', err.message, 'danger');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Cevap Gönder';
+      }
+    });
+  }
+}
+
+// Load Resident's own complaints
+async function loadResidentComplaints() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/complaint/my-list`, {
+      headers: { 'Authorization': `Bearer ${currentToken}` }
+    });
+
+    if (!response.ok) throw new Error('Şikayetleriniz yüklenemedi.');
+
+    const complaints = await response.json();
+    const container = document.getElementById('resident-complaints-list');
+
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (complaints.length === 0) {
+      container.innerHTML = `
+        <div class="alert alert-info">
+          <span class="alert-icon">ℹ️</span>
+          <div>Henüz iletilen bir şikayetiniz bulunmamaktadır.</div>
+        </div>
+      `;
+      return;
+    }
+
+    complaints.forEach(c => {
+      const card = document.createElement('div');
+      card.className = 'list-item';
+      card.style.flexDirection = 'column';
+      card.style.alignItems = 'stretch';
+      card.style.gap = '12px';
+      card.style.padding = '16px';
+      
+      const dateStr = new Date(c.createdDate).toLocaleDateString('tr-TR', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+
+      let replyHtml = '';
+      if (c.replyText) {
+        const replyDateStr = new Date(c.replyDate).toLocaleDateString('tr-TR', {
+          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        replyHtml = `
+          <div style="background-color: rgba(16, 185, 129, 0.08); border: 1px solid var(--success); border-radius: var(--border-radius-md); padding: 12px; margin-top: 8px;">
+            <div style="font-weight: 700; color: var(--success); font-size: 0.85rem; margin-bottom: 4px;">💬 Yönetici Yanıtı (${replyDateStr}):</div>
+            <div style="font-size: 0.9rem; color: var(--text-main); line-height: 1.4; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.replyText)}</div>
+          </div>
+        `;
+      } else {
+        replyHtml = `
+          <div style="font-size: 0.8rem; color: var(--warning); font-style: italic; margin-top: 4px;">
+            ⏳ Henüz yanıtlanmadı (Beklemede)
+          </div>
+        `;
+      }
+
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+          <div style="flex: 1;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Başvuru Tarihi: ${dateStr}</div>
+            <div style="font-size: 0.95rem; font-weight: 500; color: var(--text-main); white-space: pre-wrap; word-break: break-word; line-height: 1.4;">${escapeHtml(c.text)}</div>
+          </div>
+          <button class="btn btn-danger btn-sm btn-withdraw-complaint" data-id="${c.id}" style="margin: 0; padding: 6px 12px; font-size: 0.8rem; min-height: unset; flex-shrink: 0;">
+            Geri Çek
+          </button>
+        </div>
+        ${replyHtml}
+      `;
+      container.appendChild(card);
+    });
+
+    // Bind withdraw actions
+    container.querySelectorAll('.btn-withdraw-complaint').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (confirm('Bu şikayet başvurusunu tamamen iptal etmek ve geri çekmek istediğinize emin misiniz?')) {
+          await withdrawComplaint(id);
+        }
+      });
+    });
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function withdrawComplaint(id) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/complaint/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${currentToken}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Şikayet geri çekilemedi.');
+    }
+
+    showToast('🗑️ Şikayet Geri Çekildi', 'Şikayet başvurunuz başarıyla silindi.', 'success');
+    loadResidentComplaints();
+
+  } catch (err) {
+    showToast('❌ Hata', err.message, 'danger');
   }
 }
 

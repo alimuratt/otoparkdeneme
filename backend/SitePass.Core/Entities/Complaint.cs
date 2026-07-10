@@ -10,5 +10,7 @@ namespace SitePass.Core.Entities
         
         public int ResidentId { get; set; }
         public virtual User? Resident { get; set; }
+        public string? ReplyText { get; set; }
+        public DateTime? ReplyDate { get; set; }
     }
 }
